@@ -18,15 +18,16 @@ export interface DCFRow {
 }
 
 export interface DCFResult {
-  rows:      DCFRow[]
-  pvTv:      number
-  sumPvFcf:  number
-  ev:        number
-  equity:    number
-  perShare:  number
-  updown:    number   // % vs current price
-  tvWeight:  number   // TV / EV
-  gordon:    number   // TV multiple
+  rows:         DCFRow[]
+  pvTv:         number
+  sumPvFcf:     number
+  ev:           number
+  equity:       number
+  perShare:     number
+  updown:       number   // % vs current price
+  tvWeight:     number   // TV / EV
+  gordon:       number   // TV multiple
+  impliedCAGR:  number   // 10-yr CAGR: fair value accreted at WACC from current price
 }
 
 export function runDCF(
@@ -69,11 +70,16 @@ export function runDCF(
   const equity   = ev + netCash
   const perShare = equity / rows[9].shares
 
+  // Fair value accreted at WACC for 10 years, divided by current price → CAGR
+  const fvYear10     = perShare * Math.pow(1 + wacc, 10)
+  const impliedCAGR  = Math.pow(fvYear10 / currentPrice, 0.1) - 1
+
   return {
     rows, pvTv, sumPvFcf, ev, equity, perShare,
-    updown:   (perShare / currentPrice - 1) * 100,
-    tvWeight: pvTv / ev,
+    updown:      (perShare / currentPrice - 1) * 100,
+    tvWeight:    pvTv / ev,
     gordon,
+    impliedCAGR,
   }
 }
 

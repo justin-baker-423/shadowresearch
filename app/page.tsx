@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { MODELS } from "@/lib/models"
 import { runDCF } from "@/lib/dcf-engine"
+import { META_MODELS } from "@/lib/meta-models"
+import { runMetaDCF } from "@/lib/meta-dcf-engine"
 
 export const revalidate = 300 // refresh every 5 minutes
 
@@ -44,6 +46,14 @@ export default async function Home() {
     })
   )
 
+  // Fetch META live price (USD, no FX conversion needed)
+  const metaLivePrice = await yahooPrice("META")
+  const adjustedMetaModels = META_MODELS.map(m =>
+    metaLivePrice ? { ...m, currentPrice: metaLivePrice } : m
+  )
+
+  const totalModels = adjustedModels.length + adjustedMetaModels.length
+
   return (
     <div className="landing">
       <div className="landing-hero">
@@ -56,7 +66,7 @@ export default async function Home() {
       </div>
 
       <div className="section-label" style={{ marginBottom: 14 }}>
-        {adjustedModels.length} {adjustedModels.length === 1 ? "Model" : "Models"}
+        {totalModels} {totalModels === 1 ? "Model" : "Models"}
       </div>
 
       <div className="model-grid">
@@ -91,6 +101,47 @@ export default async function Home() {
                   </span>
                 </span>
                 <span>Updated {m.lastUpdated}</span>
+              </div>
+              <div className="model-card-cagr" style={{ color: upCol }}>
+                10-yr CAGR: {result.impliedCAGR > 0 ? "+" : ""}{(result.impliedCAGR * 100).toFixed(1)}%
+              </div>
+            </Link>
+          )
+        })}
+
+        {adjustedMetaModels.map(m => {
+          const result = runMetaDCF(m, "base", m.waccDefault, m.termGrowth, m.roicDefault)
+          const upSign = result.updown > 0 ? "+" : ""
+          const upCol  = result.updown > 0 ? "var(--green)" : "var(--red)"
+
+          return (
+            <Link key={m.slug} href={`/models/${m.slug}`} className="model-card">
+              <div className="model-card-top">
+                <span
+                  className="model-card-ticker"
+                  style={{ color: m.accentColor ?? "var(--accent)" }}
+                >
+                  {m.ticker}
+                </span>
+                <span className="model-card-exchange">{m.exchange}</span>
+              </div>
+              <div className="model-card-name">{m.name}</div>
+              <div className="model-card-desc">{m.description}</div>
+              <div className="model-card-footer">
+                <span>
+                  Base IV:{" "}
+                  <strong style={{ color: "var(--text-1)" }}>
+                    ${Math.round(result.perShare)}
+                  </strong>
+                  {" "}
+                  <span style={{ color: upCol }}>
+                    ({upSign}{result.updown.toFixed(1)}%)
+                  </span>
+                </span>
+                <span>Updated {m.lastUpdated}</span>
+              </div>
+              <div className="model-card-cagr" style={{ color: upCol }}>
+                10-yr CAGR: {result.impliedCAGR > 0 ? "+" : ""}{(result.impliedCAGR * 100).toFixed(1)}%
               </div>
             </Link>
           )

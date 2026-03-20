@@ -224,6 +224,7 @@ export default function ModelShell({ model, priceSource }: { model: ModelConfig;
               ["Intrinsic Value / Share",             fShare(M.perShare, curr),                    scColors.color ],
               ["Current price reference",             `${curr}${model.currentPrice}`,              "var(--text-3)"],
               ["Implied upside / (downside)",         `${M.updown > 0 ? "+" : ""}${f1(M.updown)}%`, upCol        ],
+              ["10-yr implied CAGR",                  `${M.impliedCAGR > 0 ? "+" : ""}${f1(M.impliedCAGR * 100)}%`, upCol ],
             ].map(([k, v, col]) => (
               <div key={k} className="bridge-row">
                 <span className="bridge-label">{k}</span>

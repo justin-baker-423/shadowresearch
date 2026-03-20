@@ -2,9 +2,9 @@
 import Link from "next/link"
 import { useState } from "react"
 import { usePathname } from "next/navigation"
-import type { ModelConfig } from "@/lib/models"
+type SidebarEntry = { slug: string; ticker: string; name: string; sector: string; accentColor?: string }
 
-export default function Sidebar({ models }: { models: ModelConfig[] }) {
+export default function Sidebar({ models }: { models: SidebarEntry[] }) {
   const pathname = usePathname()
   const [modelsOpen, setModelsOpen] = useState(false)
 

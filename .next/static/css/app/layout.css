@@ -266,6 +266,7 @@ input[type=range]::-webkit-slider-thumb { width: 14px; height: 14px; border-radi
 .model-card-name { font-size: 13px; color: var(--text-2); margin-bottom: 6px; }
 .model-card-desc { font-size: 11px; color: var(--text-3); line-height: 1.5; margin-bottom: 14px; }
 .model-card-footer { display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: var(--text-3); border-top: 1px solid var(--border); padding-top: 10px; }
+.model-card-cagr { font-size: 10px; font-weight: 600; margin-top: 6px; letter-spacing: 0.02em; }
 
 /* phase legend */
 .phase-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 14px; }

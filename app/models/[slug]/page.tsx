@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation"
 import { getModel } from "@/lib/models"
+import { getMetaModel, META_MODELS } from "@/lib/meta-models"
 import ModelShell from "@/components/ModelShell"
+import MetaModelShell from "@/components/MetaModelShell"
 
 export const revalidate = 300 // refresh prices every 5 minutes
 
@@ -28,32 +30,44 @@ async function yahooPrice(ticker: string): Promise<number | null> {
 
 export async function generateStaticParams() {
   const { MODELS } = await import("@/lib/models")
-  return MODELS.map(m => ({ slug: m.slug }))
+  return [
+    ...MODELS.map(m => ({ slug: m.slug })),
+    ...META_MODELS.map(m => ({ slug: m.slug })),
+  ]
 }
 
 export async function generateMetadata({ params }: Props) {
-  const model = getModel(params.slug)
-  if (!model) return {}
+  const model     = getModel(params.slug)
+  const metaModel = getMetaModel(params.slug)
+  const m = model ?? metaModel
+  if (!m) return {}
   return {
-    title: `${model.ticker} DCF — ${model.name}`,
-    description: model.description,
+    title: `${m.ticker} DCF — ${m.name}`,
+    description: m.description,
   }
 }
 
 export default async function ModelPage({ params }: Props) {
+  // ── Capex-Adjusted NOPAT models (Meta engine) ─────────────────
+  const metaModel = getMetaModel(params.slug)
+  if (metaModel) {
+    const livePrice = await yahooPrice(metaModel.ticker)
+    const adjusted  = livePrice ? { ...metaModel, currentPrice: livePrice } : metaModel
+    const priceSource = livePrice ? "Live · NASDAQ" : "Hardcoded"
+    return <MetaModelShell model={adjusted} priceSource={priceSource} />
+  }
+
+  // ── Standard earnings-based models (SAP engine) ───────────────
   const model = getModel(params.slug)
   if (!model) notFound()
 
-  // Fetch live NYSE price in USD
   const livePrice = await yahooPrice(model.ticker)
-
-  // If model financials are in EUR, fetch EUR→USD FX rate and convert everything
   let adjustedModel = { ...model }
   let priceSource = "Hardcoded"
 
   if (model.currency === "EUR") {
     const eurUsd = await yahooPrice("EURUSD=X")
-    const fx = eurUsd ?? 1.08 // fallback rate if fetch fails
+    const fx = eurUsd ?? 1.08
     adjustedModel = {
       ...model,
       currency:     "USD",

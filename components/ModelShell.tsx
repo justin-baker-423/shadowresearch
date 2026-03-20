@@ -14,7 +14,7 @@ function fPct(n: number) { return f1(n * 100) + "%" }
 function fB(n: number, curr: string) { return curr + f1(n) + "B" }
 function fShare(n: number, curr: string) { return curr + Math.round(n) }
 
-export default function ModelShell({ model }: { model: ModelConfig }) {
+export default function ModelShell({ model, priceSource }: { model: ModelConfig; priceSource?: string }) {
   const curr = model.currency === "EUR" ? "€" : model.currency === "GBP" ? "£" : "$"
 
   const [sc,    setSc]    = useState<Scenario>("base")
@@ -81,7 +81,12 @@ export default function ModelShell({ model }: { model: ModelConfig }) {
         </div>
         <div className="model-subline">
           Base year FY{model.baseYear}A · Revenue {fB(model.baseRevenue, curr)} ·{" "}
-          {model.sharesOut}B diluted shares · Net cash {curr}{model.netCash}B · Price ref {curr}{model.currentPrice}
+          {model.sharesOut}B diluted shares · Net cash {curr}{model.netCash}B · Price ref {curr}{model.currentPrice}{" "}
+          {priceSource && (
+            <span style={{ color: priceSource.startsWith("Live") ? "var(--green)" : "var(--text-3)", fontWeight: 500 }}>
+              ({priceSource})
+            </span>
+          )}
         </div>
         <div className="model-subline">
           Owner earnings = (Non-IFRS margin − {fPct(model.sbcHaircut)} SBC) × (1 − {fPct(model.taxRate)} tax) ·{" "}

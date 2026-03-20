@@ -4,7 +4,7 @@ import Sidebar from "@/components/Sidebar"
 import { MODELS } from "@/lib/models"
 
 export const metadata: Metadata = {
-  title: "DCF Research",
+  title: "Shadow Research",
   description: "Private equity research — discounted cash flow models",
 }
 

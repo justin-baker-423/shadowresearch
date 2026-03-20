@@ -2,11 +2,52 @@ import Link from "next/link"
 import { MODELS } from "@/lib/models"
 import { runDCF } from "@/lib/dcf-engine"
 
-export default function Home() {
+export const revalidate = 300 // refresh every 5 minutes
+
+async function yahooPrice(ticker: string): Promise<number | null> {
+  try {
+    const res = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`,
+      {
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+        next: { revalidate: 300 },
+      }
+    )
+    if (!res.ok) return null
+    const json = await res.json()
+    const price = json?.chart?.result?.[0]?.meta?.regularMarketPrice
+    return typeof price === "number" ? price : null
+  } catch {
+    return null
+  }
+}
+
+export default async function Home() {
+  // Fetch EUR/USD rate once for all EUR-denominated models
+  const eurUsd = await yahooPrice("EURUSD=X")
+  const fx = eurUsd ?? 1.08
+
+  // Build adjusted models with live FX conversion
+  const adjustedModels = await Promise.all(
+    MODELS.map(async m => {
+      const livePrice = await yahooPrice(m.ticker)
+      if (m.currency === "EUR") {
+        return {
+          ...m,
+          currency:     "USD" as const,
+          currentPrice: livePrice ?? parseFloat((m.currentPrice * fx).toFixed(2)),
+          baseRevenue:  parseFloat((m.baseRevenue * fx).toFixed(1)),
+          netCash:      parseFloat((m.netCash * fx).toFixed(2)),
+        }
+      }
+      return livePrice ? { ...m, currentPrice: livePrice } : m
+    })
+  )
+
   return (
     <div className="landing">
       <div className="landing-hero">
-        <h1>DCF Research</h1>
+        <h1>Shadow Research</h1>
         <p>
           Discounted cash flow models built from first principles.
           Each model is interactive — adjust WACC, terminal growth, and
@@ -15,11 +56,11 @@ export default function Home() {
       </div>
 
       <div className="section-label" style={{ marginBottom: 14 }}>
-        {MODELS.length} {MODELS.length === 1 ? "Model" : "Models"}
+        {adjustedModels.length} {adjustedModels.length === 1 ? "Model" : "Models"}
       </div>
 
       <div className="model-grid">
-        {MODELS.map(m => {
+        {adjustedModels.map(m => {
           const result = runDCF(m, "base", m.waccDefault, m.termGrowth)
           const upSign = result.updown > 0 ? "+" : ""
           const upCol  = result.updown > 0 ? "var(--green)" : "var(--red)"

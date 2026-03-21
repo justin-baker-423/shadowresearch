@@ -1,13 +1,17 @@
 import { notFound } from "next/navigation"
 import { getModel } from "@/lib/models"
 import { getMetaModel, META_MODELS } from "@/lib/meta-models"
+import { getTeslaModel, TESLA_MODELS } from "@/lib/tesla-models"
+import { getLemonadeModel, LEMONADE_MODELS } from "@/lib/lemonade-models"
 import ModelShell from "@/components/ModelShell"
 import MetaModelShell from "@/components/MetaModelShell"
+import TeslaModelShell from "@/components/TeslaModelShell"
+import LemonadeModelShell from "@/components/LemonadeModelShell"
 
 export const revalidate = 300 // refresh prices every 5 minutes
 
 interface Props {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 }
 
 async function yahooPrice(ticker: string): Promise<number | null> {
@@ -33,23 +37,44 @@ export async function generateStaticParams() {
   return [
     ...MODELS.map(m => ({ slug: m.slug })),
     ...META_MODELS.map(m => ({ slug: m.slug })),
+    ...TESLA_MODELS.map(m => ({ slug: m.slug })),
+    ...LEMONADE_MODELS.map(m => ({ slug: m.slug })),
   ]
 }
 
 export async function generateMetadata({ params }: Props) {
-  const model     = getModel(params.slug)
-  const metaModel = getMetaModel(params.slug)
-  const m = model ?? metaModel
-  if (!m) return {}
+  const { slug } = await params
+  const model  = getModel(slug) ?? getMetaModel(slug) ?? getTeslaModel(slug) ?? getLemonadeModel(slug)
+  if (!model) return {}
   return {
-    title: `${m.ticker} DCF — ${m.name}`,
-    description: m.description,
+    title: `${model.ticker} DCF — ${model.name}`,
+    description: model.description,
   }
 }
 
 export default async function ModelPage({ params }: Props) {
+  const { slug } = await params
+
+  // ── Tesla multi-segment models ────────────────────────────────
+  const teslaModel = getTeslaModel(slug)
+  if (teslaModel) {
+    const livePrice = await yahooPrice(teslaModel.ticker)
+    const adjusted  = livePrice ? { ...teslaModel, currentPrice: livePrice } : teslaModel
+    const priceSource = livePrice ? "Live · NASDAQ" : "Hardcoded"
+    return <TeslaModelShell model={adjusted} priceSource={priceSource} />
+  }
+
+  // ── Lemonade IFP-driven models ────────────────────────────────
+  const lemonadeModel = getLemonadeModel(slug)
+  if (lemonadeModel) {
+    const livePrice = await yahooPrice(lemonadeModel.ticker)
+    const adjusted  = livePrice ? { ...lemonadeModel, currentPrice: livePrice } : lemonadeModel
+    const priceSource = livePrice ? "Live · NYSE" : "Hardcoded"
+    return <LemonadeModelShell model={adjusted} priceSource={priceSource} />
+  }
+
   // ── Capex-Adjusted NOPAT models (Meta engine) ─────────────────
-  const metaModel = getMetaModel(params.slug)
+  const metaModel = getMetaModel(slug)
   if (metaModel) {
     const livePrice = await yahooPrice(metaModel.ticker)
     const adjusted  = livePrice ? { ...metaModel, currentPrice: livePrice } : metaModel
@@ -57,8 +82,8 @@ export default async function ModelPage({ params }: Props) {
     return <MetaModelShell model={adjusted} priceSource={priceSource} />
   }
 
-  // ── Standard earnings-based models (SAP engine) ───────────────
-  const model = getModel(params.slug)
+  // ── Standard earnings-based models (SAP / Chipotle engine) ────
+  const model = getModel(slug)
   if (!model) notFound()
 
   const livePrice = await yahooPrice(model.ticker)

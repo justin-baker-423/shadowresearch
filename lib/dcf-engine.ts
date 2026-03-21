@@ -6,15 +6,16 @@
 import type { ModelConfig, Scenario } from "./models"
 
 export interface DCFRow {
-  year:    number
-  rev:     number
-  revGrowth: number
-  niM:     number   // non-IFRS margin
-  oeM:     number   // owner-earnings margin (post SBC haircut)
-  fcfM:    number   // FCF margin (post tax)
-  fcf:     number
-  pvFcf:   number
-  shares:  number
+  year:        number
+  rev:         number
+  revGrowth:   number
+  niM:         number   // non-IFRS margin
+  oeM:         number   // owner-earnings margin (post SBC haircut)
+  fcfM:        number   // FCF margin (post tax)
+  fcf:         number
+  pvFcf:       number
+  shares:      number
+  sharesBought?: number // shares repurchased via FCF (billions), only when buybackPE is set
 }
 
 export interface DCFResult {
@@ -37,7 +38,7 @@ export function runDCF(
   termG:  number,
 ): DCFResult {
   const { baseRevenue, sharesOut, netCash, currentPrice,
-          taxRate, sbcHaircut, buybackRate } = model
+          taxRate, sbcHaircut, buybackRate, buybackPE } = model
   const { revGrowth, niMargin } = model.scenarios[sc]
 
   let rev    = baseRevenue
@@ -45,12 +46,23 @@ export function runDCF(
   const rows: DCFRow[] = []
 
   for (let i = 0; i < 10; i++) {
-    rev    = rev * (1 + revGrowth[i])
-    shares = shares * (1 - buybackRate)
+    rev = rev * (1 + revGrowth[i])
     const niM  = niMargin[i]
     const oeM  = niM - sbcHaircut
     const fcfM = oeM * (1 - taxRate)
     const fcf  = rev * fcfM
+
+    let sharesBought: number | undefined
+    if (buybackPE) {
+      // 100% of FCF repurchased at (buybackPE × owner-earnings per share)
+      // buyback price = buybackPE × (fcf / shares)
+      // shares bought = fcf / buyback price = shares / buybackPE
+      sharesBought = shares / buybackPE
+      shares = shares - sharesBought
+    } else {
+      shares = shares * (1 - buybackRate)
+    }
+
     rows.push({
       year:      2026 + i,
       rev,
@@ -58,6 +70,7 @@ export function runDCF(
       niM, oeM, fcfM, fcf,
       pvFcf: fcf / Math.pow(1 + wacc, i + 1),
       shares,
+      sharesBought,
     })
   }
 

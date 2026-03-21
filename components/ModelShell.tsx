@@ -90,7 +90,10 @@ export default function ModelShell({ model, priceSource }: { model: ModelConfig;
         </div>
         <div className="model-subline">
           Owner earnings = (Non-IFRS margin − {fPct(model.sbcHaircut)} SBC) × (1 − {fPct(model.taxRate)} tax) ·{" "}
-          {fPct(model.buybackRate)}/yr share reduction · WACC {fPct(wacc)} · Terminal g {fPct(termG)}
+          {model.buybackPE
+            ? `100% FCF buybacks at ${model.buybackPE}× owner earnings (~${fPct(1 / model.buybackPE)}/yr)`
+            : `${fPct(model.buybackRate)}/yr share reduction`
+          } · WACC {fPct(wacc)} · Terminal g {fPct(termG)}
         </div>
       </div>
 
@@ -175,6 +178,8 @@ export default function ModelShell({ model, priceSource }: { model: ModelConfig;
                   <th>Owner-Earnings Margin</th>
                   <th>FCF Margin</th>
                   <th>FCF</th>
+                  {model.buybackPE && <th style={{ color: "var(--purple)" }}>Shares Bought</th>}
+                  <th>Shares Out</th>
                   <th>PV of FCF</th>
                 </tr>
               </thead>
@@ -193,6 +198,12 @@ export default function ModelShell({ model, priceSource }: { model: ModelConfig;
                       <td style={{ color: "var(--text-2)" }}>{fPct(r.oeM)}</td>
                       <td style={{ color: "var(--text-2)" }}>{fPct(r.fcfM)}</td>
                       <td>{fB(r.fcf, curr)}</td>
+                      {model.buybackPE && (
+                        <td style={{ color: "var(--purple)" }}>
+                          {r.sharesBought !== undefined ? f1(r.sharesBought * 1000) + "M" : "—"}
+                        </td>
+                      )}
+                      <td style={{ color: "var(--text-2)" }}>{f1(r.shares * 1000)}M</td>
                       <td style={{ color: "var(--accent)" }}>{fB(r.pvFcf, curr)}</td>
                     </tr>
                   )
@@ -278,7 +289,8 @@ export default function ModelShell({ model, priceSource }: { model: ModelConfig;
                     {SENS.waccs.map((w, ci) => {
                       const val = SENS.grid[ri][ci]
                       const sel = Math.abs(w - wacc) < 0.001 && Math.abs(tg - termG) < 0.001
-                      const cls = val > 220 ? "sens-cell-green" : val > 175 ? "sens-cell-accent" : val > 140 ? "sens-cell-amber" : "sens-cell-red"
+                      const ratio = val / model.currentPrice
+                      const cls = ratio >= 1.3 ? "sens-cell-green" : ratio >= 1.0 ? "sens-cell-accent" : ratio >= 0.7 ? "sens-cell-amber" : "sens-cell-red"
                       return (
                         <td key={w} className={`${cls} ${sel ? "sens-cell-selected" : ""}`}
                           style={sel ? { borderColor: scColors.color, color: scColors.color } : {}}>
@@ -294,10 +306,10 @@ export default function ModelShell({ model, priceSource }: { model: ModelConfig;
 
           <div className="sens-legend">
             {[
-              ["var(--green)",  "var(--green-dim)",  `>${curr}220 (>26% upside)`],
-              ["var(--accent)", "var(--accent-dim)",  `${curr}175–220 (0–26%)`],
-              ["var(--amber)",  "var(--amber-dim)",   `${curr}140–175 (−20%–0%)`],
-              ["var(--red)",    "var(--red-dim)",     `<${curr}140 (>20% down)`],
+              ["var(--green)",  "var(--green-dim)",  `>${curr}${Math.round(model.currentPrice * 1.3)} (>30% upside)`],
+              ["var(--accent)", "var(--accent-dim)", `${curr}${Math.round(model.currentPrice)}–${curr}${Math.round(model.currentPrice * 1.3)} (0–30%)`],
+              ["var(--amber)",  "var(--amber-dim)",  `${curr}${Math.round(model.currentPrice * 0.7)}–${curr}${Math.round(model.currentPrice)} (−30%–0%)`],
+              ["var(--red)",    "var(--red-dim)",    `<${curr}${Math.round(model.currentPrice * 0.7)} (>30% down)`],
             ].map(([col, bg, lbl]) => (
               <div key={lbl} className="sens-legend-item" style={{ color: col }}>
                 <span className="sens-legend-swatch" style={{ background: bg, border: `1px solid ${col}66` }} />
@@ -363,7 +375,16 @@ export default function ModelShell({ model, priceSource }: { model: ModelConfig;
               color: "var(--purple)",
               rows: [
                 ["Shares outstanding", model.sharesOut + "B diluted"],
-                ["Annual buyback rate", fPct(model.buybackRate) + "/yr share count reduction"],
+                ...(model.buybackPE
+                  ? [
+                      ["Buyback method", "100% of annual FCF returned as share repurchases"],
+                      ["Repurchase price", `${model.buybackPE}× current-year owner earnings per share`],
+                      ["Implied annual reduction", `~${fPct(1 / model.buybackPE)}/yr (shares / ${model.buybackPE} bought back each year)`],
+                    ]
+                  : [
+                      ["Annual buyback rate", fPct(model.buybackRate) + "/yr share count reduction"],
+                    ]
+                ),
                 [`${model.baseYear + 10}E shares`, f1(runDCF(model, "base", model.waccDefault, model.termGrowth).rows[9].shares) + "B"],
                 ["Net cash / (debt)", `${curr}${f1(model.netCash)}B — added to equity value`],
               ],
@@ -397,7 +418,10 @@ export default function ModelShell({ model, priceSource }: { model: ModelConfig;
       <div className="disclaimer">
         For informational and educational purposes only · Not investment advice · All figures in {model.currency} ·
         Owner earnings = (Non-IFRS op. margin − {fPct(model.sbcHaircut)} SBC) × (1 − {fPct(model.taxRate)} tax) ·
-        {model.buybackRate * 100}%/yr share reduction · Updated {model.lastUpdated}
+        {model.buybackPE
+          ? `100% FCF buybacks at ${model.buybackPE}× owner earnings`
+          : `${model.buybackRate * 100}%/yr share reduction`
+        } · Updated {model.lastUpdated}
       </div>
     </div>
   )

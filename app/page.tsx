@@ -3,6 +3,10 @@ import { MODELS } from "@/lib/models"
 import { runDCF } from "@/lib/dcf-engine"
 import { META_MODELS } from "@/lib/meta-models"
 import { runMetaDCF } from "@/lib/meta-dcf-engine"
+import { TESLA_MODELS } from "@/lib/tesla-models"
+import { runTeslaDCF } from "@/lib/tesla-engine"
+import { LEMONADE_MODELS } from "@/lib/lemonade-models"
+import { runLemonadeDCF } from "@/lib/lemonade-engine"
 
 export const revalidate = 300 // refresh every 5 minutes
 
@@ -29,7 +33,7 @@ export default async function Home() {
   const eurUsd = await yahooPrice("EURUSD=X")
   const fx = eurUsd ?? 1.08
 
-  // Build adjusted models with live FX conversion
+  // ── Standard models (SAP, CMG) ──────────────────────────────
   const adjustedModels = await Promise.all(
     MODELS.map(async m => {
       const livePrice = await yahooPrice(m.ticker)
@@ -46,13 +50,35 @@ export default async function Home() {
     })
   )
 
-  // Fetch META live price (USD, no FX conversion needed)
-  const metaLivePrice = await yahooPrice("META")
-  const adjustedMetaModels = META_MODELS.map(m =>
-    metaLivePrice ? { ...m, currentPrice: metaLivePrice } : m
+  // ── Meta / Capex-Adjusted models ─────────────────────────────
+  const adjustedMetaModels = await Promise.all(
+    META_MODELS.map(async m => {
+      const livePrice = await yahooPrice(m.ticker)
+      return livePrice ? { ...m, currentPrice: livePrice } : m
+    })
   )
 
-  const totalModels = adjustedModels.length + adjustedMetaModels.length
+  // ── Tesla multi-segment models ────────────────────────────────
+  const adjustedTeslaModels = await Promise.all(
+    TESLA_MODELS.map(async m => {
+      const livePrice = await yahooPrice(m.ticker)
+      return livePrice ? { ...m, currentPrice: livePrice } : m
+    })
+  )
+
+  // ── Lemonade IFP-driven models ────────────────────────────────
+  const adjustedLemonadeModels = await Promise.all(
+    LEMONADE_MODELS.map(async m => {
+      const livePrice = await yahooPrice(m.ticker)
+      return livePrice ? { ...m, currentPrice: livePrice } : m
+    })
+  )
+
+  const totalModels =
+    adjustedModels.length +
+    adjustedMetaModels.length +
+    adjustedTeslaModels.length +
+    adjustedLemonadeModels.length
 
   return (
     <div className="landing">
@@ -70,6 +96,8 @@ export default async function Home() {
       </div>
 
       <div className="model-grid">
+
+        {/* ── Standard earnings-based models (SAP, CMG) ── */}
         {adjustedModels.map(m => {
           const result = runDCF(m, "base", m.waccDefault, m.termGrowth)
           const upSign = result.updown > 0 ? "+" : ""
@@ -79,10 +107,7 @@ export default async function Home() {
           return (
             <Link key={m.slug} href={`/models/${m.slug}`} className="model-card">
               <div className="model-card-top">
-                <span
-                  className="model-card-ticker"
-                  style={{ color: m.accentColor ?? "var(--accent)" }}
-                >
+                <span className="model-card-ticker" style={{ color: m.accentColor ?? "var(--accent)" }}>
                   {m.ticker}
                 </span>
                 <span className="model-card-exchange">{m.exchange}</span>
@@ -109,6 +134,7 @@ export default async function Home() {
           )
         })}
 
+        {/* ── Capex-Adjusted NOPAT models (Meta) ── */}
         {adjustedMetaModels.map(m => {
           const result = runMetaDCF(m, "base", m.waccDefault, m.termGrowth, m.roicDefault)
           const upSign = result.updown > 0 ? "+" : ""
@@ -117,10 +143,7 @@ export default async function Home() {
           return (
             <Link key={m.slug} href={`/models/${m.slug}`} className="model-card">
               <div className="model-card-top">
-                <span
-                  className="model-card-ticker"
-                  style={{ color: m.accentColor ?? "var(--accent)" }}
-                >
+                <span className="model-card-ticker" style={{ color: m.accentColor ?? "var(--accent)" }}>
                   {m.ticker}
                 </span>
                 <span className="model-card-exchange">{m.exchange}</span>
@@ -146,6 +169,79 @@ export default async function Home() {
             </Link>
           )
         })}
+
+        {/* ── Tesla multi-segment models ── */}
+        {adjustedTeslaModels.map(m => {
+          const result = runTeslaDCF(m, m.waccDefault, m.termGrowth)
+          const upSign = result.updown > 0 ? "+" : ""
+          const upCol  = result.updown > 0 ? "var(--green)" : "var(--red)"
+
+          return (
+            <Link key={m.slug} href={`/models/${m.slug}`} className="model-card">
+              <div className="model-card-top">
+                <span className="model-card-ticker" style={{ color: m.accentColor ?? "var(--accent)" }}>
+                  {m.ticker}
+                </span>
+                <span className="model-card-exchange">{m.exchange}</span>
+              </div>
+              <div className="model-card-name">{m.name}</div>
+              <div className="model-card-desc">{m.description}</div>
+              <div className="model-card-footer">
+                <span>
+                  Bull IV:{" "}
+                  <strong style={{ color: "var(--text-1)" }}>
+                    ${Math.round(result.perShare).toLocaleString()}
+                  </strong>
+                  {" "}
+                  <span style={{ color: upCol }}>
+                    ({upSign}{result.updown.toFixed(1)}%)
+                  </span>
+                </span>
+                <span>Updated {m.lastUpdated}</span>
+              </div>
+              <div className="model-card-cagr" style={{ color: upCol }}>
+                10-yr CAGR: {result.impliedCAGR > 0 ? "+" : ""}{(result.impliedCAGR * 100).toFixed(1)}%
+              </div>
+            </Link>
+          )
+        })}
+
+        {/* ── Lemonade IFP-driven models ── */}
+        {adjustedLemonadeModels.map(m => {
+          const result = runLemonadeDCF(m, m.waccDefault, m.termGrowth)
+          const upSign = result.updown > 0 ? "+" : ""
+          const upCol  = result.updown > 0 ? "var(--green)" : "var(--red)"
+
+          return (
+            <Link key={m.slug} href={`/models/${m.slug}`} className="model-card">
+              <div className="model-card-top">
+                <span className="model-card-ticker" style={{ color: m.accentColor ?? "var(--accent)" }}>
+                  {m.ticker}
+                </span>
+                <span className="model-card-exchange">{m.exchange}</span>
+              </div>
+              <div className="model-card-name">{m.name}</div>
+              <div className="model-card-desc">{m.description}</div>
+              <div className="model-card-footer">
+                <span>
+                  Base IV:{" "}
+                  <strong style={{ color: "var(--text-1)" }}>
+                    ${Math.round(result.perShare)}
+                  </strong>
+                  {" "}
+                  <span style={{ color: upCol }}>
+                    ({upSign}{result.updown.toFixed(1)}%)
+                  </span>
+                </span>
+                <span>Updated {m.lastUpdated}</span>
+              </div>
+              <div className="model-card-cagr" style={{ color: upCol }}>
+                10-yr CAGR: {result.impliedCAGR > 0 ? "+" : ""}{(result.impliedCAGR * 100).toFixed(1)}%
+              </div>
+            </Link>
+          )
+        })}
+
       </div>
     </div>
   )

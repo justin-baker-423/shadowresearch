@@ -33,7 +33,9 @@ export interface ModelConfig {
   // ── shared assumptions ────────────────────────────────────────
   taxRate:     number          // decimal
   sbcHaircut:  number          // pp deducted from non-IFRS to get owner earnings
-  buybackRate: number          // annual share count reduction, decimal
+  buybackRate: number          // annual share count reduction, decimal (ignored when buybackPE is set)
+  buybackPE?:  number          // if set: 100% FCF used for buybacks at this P/E multiple
+                               // shares bought = FCF / (buybackPE × EPS) = shares / buybackPE per year
   termGrowth:  number          // default terminal growth rate
   waccDefault: number          // default WACC
 
@@ -48,6 +50,53 @@ export interface ModelConfig {
 //  MODELS  ← add new entries here
 // ─────────────────────────────────────────────────────────────────
 export const MODELS: ModelConfig[] = [
+  // ── Chipotle Mexican Grill ─────────────────────────────────────
+  // Source: Chipotle_DCF_Model.xlsx
+  // Single scenario (bear/base/bull identical) — user to add alternates.
+  // FCF margins interpolate linearly 15 % → 18 % over 10 years;
+  // niMargin back-solved as fcfMargin / (1 − 25 % tax), no SBC haircut.
+  {
+    slug:         "cmg",
+    ticker:       "CMG",
+    exchange:     "NYSE",
+    name:         "Chipotle Mexican Grill",
+    sector:       "Fast Casual / QSR",
+    description:  "Unit-count expansion · digital/loyalty flywheel · margin recovery thesis",
+    lastUpdated:  "March 2026",
+
+    baseYear:     2024,
+    baseRevenue:  11.314,   // FY2024A ($B)
+    currency:     "USD",
+    currentPrice: 57.00,    // post 50:1 split fallback; replaced at runtime
+    sharesOut:    1.350,    // 1,350 mm post-split diluted
+    netCash:      2.300,    // $2.3 B net cash
+
+    taxRate:      0.25,
+    sbcHaircut:   0.00,     // FCF margins sourced directly; no separate SBC adj.
+    buybackRate:  0.00,
+    buybackPE:    25,       // 100% FCF used for buybacks at 25× owner earnings/share
+    termGrowth:   0.025,
+    waccDefault:  0.10,
+
+    accentColor:  "#d2601a",  // Chipotle burnt-orange
+
+    scenarios: {
+      // All three identical — single scenario from Excel model
+      bear: {
+        revGrowth: [0.12,0.12,0.12,0.12,0.12, 0.12,0.12,0.12,0.12,0.12],
+        niMargin:  [0.2000,0.2044,0.2089,0.2133,0.2178, 0.2222,0.2267,0.2311,0.2356,0.2400],
+      },
+      base: {
+        revGrowth: [0.12,0.12,0.12,0.12,0.12, 0.12,0.12,0.12,0.12,0.12],
+        niMargin:  [0.2000,0.2044,0.2089,0.2133,0.2178, 0.2222,0.2267,0.2311,0.2356,0.2400],
+      },
+      bull: {
+        revGrowth: [0.12,0.12,0.12,0.12,0.12, 0.12,0.12,0.12,0.12,0.12],
+        niMargin:  [0.2000,0.2044,0.2089,0.2133,0.2178, 0.2222,0.2267,0.2311,0.2356,0.2400],
+      },
+    },
+  },
+
   {
     slug:         "sap",
     ticker:       "SAP",

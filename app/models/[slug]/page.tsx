@@ -3,10 +3,12 @@ import { getModel } from "@/lib/models"
 import { getMetaModel, META_MODELS } from "@/lib/meta-models"
 import { getTeslaModel, TESLA_MODELS } from "@/lib/tesla-models"
 import { getLemonadeModel, LEMONADE_MODELS } from "@/lib/lemonade-models"
+import { getDeereModel, DEERE_MODELS } from "@/lib/deere-models"
 import ModelShell from "@/components/ModelShell"
 import MetaModelShell from "@/components/MetaModelShell"
 import TeslaModelShell from "@/components/TeslaModelShell"
 import LemonadeModelShell from "@/components/LemonadeModelShell"
+import DeereModelShell from "@/components/DeereModelShell"
 
 export const revalidate = 300 // refresh prices every 5 minutes
 
@@ -39,12 +41,13 @@ export async function generateStaticParams() {
     ...META_MODELS.map(m => ({ slug: m.slug })),
     ...TESLA_MODELS.map(m => ({ slug: m.slug })),
     ...LEMONADE_MODELS.map(m => ({ slug: m.slug })),
+    ...DEERE_MODELS.map(m => ({ slug: m.slug })),
   ]
 }
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params
-  const model  = getModel(slug) ?? getMetaModel(slug) ?? getTeslaModel(slug) ?? getLemonadeModel(slug)
+  const model  = getModel(slug) ?? getMetaModel(slug) ?? getTeslaModel(slug) ?? getLemonadeModel(slug) ?? getDeereModel(slug)
   if (!model) return {}
   return {
     title: `${model.ticker} DCF — ${model.name}`,
@@ -62,6 +65,15 @@ export default async function ModelPage({ params }: Props) {
     const adjusted  = livePrice ? { ...teslaModel, currentPrice: livePrice } : teslaModel
     const priceSource = livePrice ? "Live · NASDAQ" : "Hardcoded"
     return <TeslaModelShell model={adjusted} priceSource={priceSource} />
+  }
+
+  // ── Deere Ag Cycle + Mix-Shift models ────────────────────────
+  const deereModel = getDeereModel(slug)
+  if (deereModel) {
+    const livePrice = await yahooPrice(deereModel.ticker)
+    const adjusted  = livePrice ? { ...deereModel, currentPrice: livePrice } : deereModel
+    const priceSource = livePrice ? "Live · NYSE" : "Hardcoded"
+    return <DeereModelShell model={adjusted} priceSource={priceSource} />
   }
 
   // ── Lemonade IFP-driven models ────────────────────────────────

@@ -5,6 +5,7 @@ import { MODELS } from "@/lib/models"
 import { META_MODELS } from "@/lib/meta-models"
 import { TESLA_MODELS } from "@/lib/tesla-models"
 import { LEMONADE_MODELS } from "@/lib/lemonade-models"
+import { DEERE_MODELS } from "@/lib/deere-models"
 
 export const metadata: Metadata = {
   title: "Shadow Research",
@@ -16,7 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <div className="app-shell">
-          <Sidebar models={[...MODELS, ...META_MODELS, ...TESLA_MODELS, ...LEMONADE_MODELS]} />
+          <Sidebar models={[...MODELS, ...META_MODELS, ...TESLA_MODELS, ...LEMONADE_MODELS, ...DEERE_MODELS]} />
           <main className="main-content">
             {children}
           </main>

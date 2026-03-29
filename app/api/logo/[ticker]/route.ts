@@ -27,6 +27,7 @@ const TICKER_DOMAINS: Record<string, string> = {
   AMZN: 'amazon.com',
   NVDA: 'nvidia.com',
   FIG:  'figma.com',
+  SAP:  'sap.com',
 }
 
 const CACHE_SECONDS = 60 * 60 * 24   // 24 h

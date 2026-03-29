@@ -38,6 +38,12 @@ export default function ModelShell({ model, priceSource }: { model: ModelConfig;
       color: upCol,
     },
     {
+      label: "10-yr Implied CAGR",
+      value: `${M.impliedCAGR > 0 ? "+" : ""}${f1(M.impliedCAGR * 100)}%`,
+      sub:   `from ${curr}${model.currentPrice} today`,
+      color: upCol,
+    },
+    {
       label: "Enterprise Value",
       value: fB(M.ev, curr),
       sub:   `PV FCFs ${fB(M.sumPvFcf, curr)} · PV TV ${fB(M.pvTv, curr)}`,

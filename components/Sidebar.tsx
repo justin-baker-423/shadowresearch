@@ -2,7 +2,10 @@
 import Link from "next/link"
 import { useState } from "react"
 import { usePathname } from "next/navigation"
-type SidebarEntry = { slug: string; ticker: string; name: string; sector: string; accentColor?: string }
+type SidebarEntry = {
+  slug: string; ticker: string; name: string; sector: string
+  accentColor?: string; cagr?: number; extraInfo?: string
+}
 
 function TickerLogo({ ticker, accentColor }: { ticker: string; accentColor?: string }) {
   const [failed, setFailed] = useState(false)
@@ -80,6 +83,15 @@ export default function Sidebar({ models }: { models: SidebarEntry[] }) {
             </div>
             <span className="sidebar-item-name">{m.name}</span>
             <span className="sidebar-item-sector">{m.sector}</span>
+            {m.cagr !== undefined && (
+              <span style={{
+                fontSize: 10, marginTop: 3,
+                color: m.cagr >= 0 ? 'var(--green)' : 'var(--red)',
+                fontVariantNumeric: 'tabular-nums',
+              }}>
+                {m.cagr >= 0 ? '+' : ''}{(m.cagr * 100).toFixed(1)}% CAGR{m.extraInfo ? ` ${m.extraInfo}` : ''}
+              </span>
+            )}
           </Link>
         )
       })}

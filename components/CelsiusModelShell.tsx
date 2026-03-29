@@ -67,6 +67,12 @@ export default function CelsiusModelShell({
       color: upCol,
     },
     {
+      label: "10-yr Implied CAGR",
+      value: `${M.impliedCAGR > 0 ? "+" : ""}${f1(M.impliedCAGR * 100)}%`,
+      sub:   `from $${model.currentPrice} today`,
+      color: upCol,
+    },
+    {
       label: "Enterprise Value",
       value: fB(M.ev),
       sub:   `PV FCFs ${fB(M.sumPvFcf)} · PV TV ${fB(M.pvTv)}`,

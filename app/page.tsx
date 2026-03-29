@@ -9,6 +9,7 @@ import { LEMONADE_MODELS } from "@/lib/lemonade-models"
 import { runLemonadeDCF } from "@/lib/lemonade-engine"
 import { DEERE_MODELS } from "@/lib/deere-models"
 import { runDeereDCF } from "@/lib/deere-engine"
+import { CELSIUS_MODELS } from "@/lib/celsius-models"
 
 export const revalidate = 300 // refresh every 5 minutes
 
@@ -84,12 +85,21 @@ export default async function Home() {
     })
   )
 
+  // ── Celsius Holdings ──────────────────────────────────────────
+  const adjustedCelsiusModels = await Promise.all(
+    CELSIUS_MODELS.map(async m => {
+      const livePrice = await yahooPrice(m.ticker)
+      return livePrice ? { ...m, currentPrice: livePrice } : m
+    })
+  )
+
   const totalModels =
     adjustedModels.length +
     adjustedMetaModels.length +
     adjustedTeslaModels.length +
     adjustedLemonadeModels.length +
-    adjustedDeereModels.length
+    adjustedDeereModels.length +
+    adjustedCelsiusModels.length
 
   return (
     <div className="landing">
@@ -287,6 +297,42 @@ export default async function Home() {
               </div>
               <div className="model-card-cagr" style={{ color: m.accentColor ?? "var(--accent)", marginTop: 2 }}>
                 Avg div yield: {(result.avgDivYield15xPE * 100).toFixed(1)}% (15× P/E)
+              </div>
+            </Link>
+          )
+        })}
+
+        {/* ── Celsius Holdings ── */}
+        {adjustedCelsiusModels.map(m => {
+          const result = runDCF(m, "base", m.waccDefault, m.termGrowth)
+          const upSign = result.updown > 0 ? "+" : ""
+          const upCol  = result.updown > 0 ? "var(--green)" : "var(--red)"
+
+          return (
+            <Link key={m.slug} href={`/models/${m.slug}`} className="model-card">
+              <div className="model-card-top">
+                <span className="model-card-ticker" style={{ color: m.accentColor ?? "var(--accent)" }}>
+                  {m.ticker}
+                </span>
+                <span className="model-card-exchange">{m.exchange}</span>
+              </div>
+              <div className="model-card-name">{m.name}</div>
+              <div className="model-card-desc">{m.description}</div>
+              <div className="model-card-footer">
+                <span>
+                  Base IV:{" "}
+                  <strong style={{ color: "var(--text-1)" }}>
+                    ${Math.round(result.perShare)}
+                  </strong>
+                  {" "}
+                  <span style={{ color: upCol }}>
+                    ({upSign}{result.updown.toFixed(1)}%)
+                  </span>
+                </span>
+                <span>Updated {m.lastUpdated}</span>
+              </div>
+              <div className="model-card-cagr" style={{ color: upCol }}>
+                10-yr CAGR: {result.impliedCAGR > 0 ? "+" : ""}{(result.impliedCAGR * 100).toFixed(1)}%
               </div>
             </Link>
           )

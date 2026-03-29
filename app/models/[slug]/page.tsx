@@ -4,11 +4,13 @@ import { getMetaModel, META_MODELS } from "@/lib/meta-models"
 import { getTeslaModel, TESLA_MODELS } from "@/lib/tesla-models"
 import { getLemonadeModel, LEMONADE_MODELS } from "@/lib/lemonade-models"
 import { getDeereModel, DEERE_MODELS } from "@/lib/deere-models"
+import { getCelsiusModel, CELSIUS_MODELS } from "@/lib/celsius-models"
 import ModelShell from "@/components/ModelShell"
 import MetaModelShell from "@/components/MetaModelShell"
 import TeslaModelShell from "@/components/TeslaModelShell"
 import LemonadeModelShell from "@/components/LemonadeModelShell"
 import DeereModelShell from "@/components/DeereModelShell"
+import CelsiusModelShell from "@/components/CelsiusModelShell"
 
 export const revalidate = 300 // refresh prices every 5 minutes
 
@@ -42,12 +44,13 @@ export async function generateStaticParams() {
     ...TESLA_MODELS.map(m => ({ slug: m.slug })),
     ...LEMONADE_MODELS.map(m => ({ slug: m.slug })),
     ...DEERE_MODELS.map(m => ({ slug: m.slug })),
+    ...CELSIUS_MODELS.map(m => ({ slug: m.slug })),
   ]
 }
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params
-  const model  = getModel(slug) ?? getMetaModel(slug) ?? getTeslaModel(slug) ?? getLemonadeModel(slug) ?? getDeereModel(slug)
+  const model  = getModel(slug) ?? getMetaModel(slug) ?? getTeslaModel(slug) ?? getLemonadeModel(slug) ?? getDeereModel(slug) ?? getCelsiusModel(slug)
   if (!model) return {}
   return {
     title: `${model.ticker} DCF — ${model.name}`,
@@ -92,6 +95,15 @@ export default async function ModelPage({ params }: Props) {
     const adjusted  = livePrice ? { ...metaModel, currentPrice: livePrice } : metaModel
     const priceSource = livePrice ? "Live · NASDAQ" : "Hardcoded"
     return <MetaModelShell model={adjusted} priceSource={priceSource} />
+  }
+
+  // ── Celsius Holdings (standard engine, custom shell) ──────────
+  const celsiusModel = getCelsiusModel(slug)
+  if (celsiusModel) {
+    const livePrice = await yahooPrice(celsiusModel.ticker)
+    const adjusted  = livePrice ? { ...celsiusModel, currentPrice: livePrice } : celsiusModel
+    const priceSource = livePrice ? "Live · NASDAQ" : "Hardcoded"
+    return <CelsiusModelShell model={adjusted} priceSource={priceSource} />
   }
 
   // ── Standard earnings-based models (SAP / Chipotle engine) ────

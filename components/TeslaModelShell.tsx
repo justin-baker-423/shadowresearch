@@ -49,6 +49,12 @@ export default function TeslaModelShell({
       color: upCol,
     },
     {
+      label: "10-yr Implied CAGR",
+      value: `${M.impliedCAGR > 0 ? "+" : ""}${f1(M.impliedCAGR * 100)}%`,
+      sub:   `from $${model.currentPrice} today`,
+      color: upCol,
+    },
+    {
       label: "Enterprise Value",
       value: fB(M.ev),
       sub:   `PV FCFs ${fB(M.sumPvFcf)} · PV TV ${fB(M.pvTv)}`,
@@ -71,12 +77,6 @@ export default function TeslaModelShell({
       value: fB(M.rows[9].fcf),
       sub:   `${fPct(M.rows[9].fcf / M.rows[9].totalRev)} FCF margin`,
       color: "var(--green)",
-    },
-    {
-      label: "10-yr Implied CAGR",
-      value: `${M.impliedCAGR > 0 ? "+" : ""}${f1(M.impliedCAGR * 100)}%`,
-      sub:   `vs $${model.currentPrice} today`,
-      color: upCol,
     },
   ]
 

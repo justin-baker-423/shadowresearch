@@ -84,7 +84,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   for (const m of LEMONADE_MODELS) {
     const adj = prices.get(m.ticker) ? { ...m, currentPrice: prices.get(m.ticker)! } : m
-    const r = runLemonadeDCF(adj, adj.waccDefault, adj.termGrowth)
+    const r = runLemonadeDCF(adj, adj.lossRatioDefault, adj.termGrowth)
     items.push({ slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor, cagr: r.impliedCAGR })
   }
 

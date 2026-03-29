@@ -63,6 +63,12 @@ export default function LemonadeModelShell({
       color: upCol,
     },
     {
+      label: "10-yr Implied CAGR",
+      value: `${M.impliedCAGR > 0 ? "+" : ""}${f1(M.impliedCAGR * 100)}%`,
+      sub:   `from $${model.currentPrice} today`,
+      color: upCol,
+    },
+    {
       label: "Enterprise Value",
       value: fB(M.ev),
       sub:   `PV FCFs ${fB(M.sumPvFcf)} · PV TV ${fB(M.pvTv)}`,
@@ -85,12 +91,6 @@ export default function LemonadeModelShell({
       value: fPct(finalCombined),
       sub:   `Loss ${fPct(M.rows[9].lossRatio)} + Expense ${fPct(M.rows[9].expenseRatio)}`,
       color: combinedRatioColor(finalCombined),
-    },
-    {
-      label: "10-yr Implied CAGR",
-      value: `${M.impliedCAGR > 0 ? "+" : ""}${f1(M.impliedCAGR * 100)}%`,
-      sub:   `vs $${model.currentPrice} today`,
-      color: upCol,
     },
   ]
 

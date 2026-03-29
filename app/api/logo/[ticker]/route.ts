@@ -26,6 +26,7 @@ const TICKER_DOMAINS: Record<string, string> = {
   MSFT: 'microsoft.com',
   AMZN: 'amazon.com',
   NVDA: 'nvidia.com',
+  FIG:  'figma.com',
 }
 
 const CACHE_SECONDS = 60 * 60 * 24   // 24 h
@@ -56,9 +57,9 @@ export async function GET(
   if (!domain) return new NextResponse(null, { status: 404 })
 
   const sources = [
-    `https://logo.clearbit.com/${domain}`,
+    `https://logo.clearbit.com/${domain}?size=128`,
     `https://img.logo.dev/${domain}?token=pk_X-1ZO13GSgeOoUrIuJ6BeQ`,  // logo.dev free tier
-    `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=64`,
+    `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=128`,
   ]
 
   for (const url of sources) {

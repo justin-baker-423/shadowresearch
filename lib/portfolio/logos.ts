@@ -5,7 +5,7 @@
 const KNOWN_TICKERS = new Set([
   'TSM', 'META', 'TSLA', 'SNOW', 'DE', 'CELH', 'CVX', 'CMG',
   'LMND', 'COIN', 'TEAM', 'PLTR', 'RIVN', 'QQQ', 'GOOGL',
-  'AAPL', 'MSFT', 'AMZN', 'NVDA',
+  'AAPL', 'MSFT', 'AMZN', 'NVDA', 'FIG',
 ])
 
 export function getLogoUrl(ticker: string): string {

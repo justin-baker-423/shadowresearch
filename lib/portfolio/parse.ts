@@ -29,14 +29,35 @@ function parseCsvLine(line: string): string[] {
 }
 
 function parseCSV(content: string): Record<string, string>[] {
-  const lines = content.split('\n').filter(l => l.trim())
-  if (lines.length < 2) return []
+  // Walk character-by-character so multi-line quoted fields (e.g. Robinhood
+  // descriptions that embed a newline before the CUSIP line) are kept together
+  // as a single logical row rather than being split into two broken lines.
+  const logicalLines: string[] = []
+  let current  = ''
+  let inQuotes = false
 
-  const headers = parseCsvLine(lines[0]).map(h => h.trim())
+  for (let i = 0; i < content.length; i++) {
+    const c = content[i]
+    if (c === '\r') continue            // strip CR from CRLF files
+    if (c === '"') {
+      if (inQuotes && content[i + 1] === '"') { current += '"'; i++ }  // escaped ""
+      else inQuotes = !inQuotes
+      current += c
+    } else if (c === '\n' && !inQuotes) {
+      if (current.trim()) logicalLines.push(current)
+      current = ''
+    } else {
+      current += c
+    }
+  }
+  if (current.trim()) logicalLines.push(current)
+
+  if (logicalLines.length < 2) return []
+  const headers = parseCsvLine(logicalLines[0]).map(h => h.trim())
   const rows: Record<string, string>[] = []
 
-  for (let i = 1; i < lines.length; i++) {
-    const values = parseCsvLine(lines[i])
+  for (let i = 1; i < logicalLines.length; i++) {
+    const values = parseCsvLine(logicalLines[i])
     const row: Record<string, string> = {}
     headers.forEach((h, idx) => {
       row[h] = (values[idx] ?? '').trim()

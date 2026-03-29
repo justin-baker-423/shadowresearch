@@ -353,3 +353,247 @@ input[type=range]::-webkit-slider-thumb { width: 14px; height: 14px; border-radi
   .sidebar { display: none; }
   .main-content { padding: 20px 16px; }
 }
+
+/* ── Portfolio Performance Page ─────────────────────────────────────────────── */
+
+.port-page { max-width: 1400px; }
+
+.port-page-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+  margin-bottom: 24px;
+}
+
+/* Two-column top layout */
+.port-top {
+  display: grid;
+  grid-template-columns: 55% 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.port-left  { display: flex; flex-direction: column; gap: 16px; }
+.port-right { display: flex; flex-direction: column; }
+
+/* Section card (white-border box) */
+.port-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 22px;
+}
+
+.port-card-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 14px;
+}
+
+/* Basic Stats rows */
+.port-stats-table { width: 100%; border-collapse: collapse; }
+.port-stats-table tr { border-bottom: 1px solid var(--border); }
+.port-stats-table tr:last-child { border-bottom: none; }
+.port-stats-table td {
+  padding: 10px 4px;
+  font-size: 13px;
+}
+.port-stats-table td:first-child { color: var(--text-2); }
+.port-stats-table td:last-child  { text-align: right; font-weight: 600; color: var(--text-1); font-variant-numeric: tabular-nums; }
+
+/* Performance chart */
+.port-chart-periods {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  align-items: center;
+}
+.port-period-btn {
+  background: var(--surface);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all 0.12s;
+}
+.port-period-btn:hover  { color: var(--text-1); border-color: var(--border-light); }
+.port-period-btn.active { background: var(--accent-dim); color: var(--accent); border-color: rgba(79,142,247,.35); font-weight: 600; }
+
+.port-custom-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.port-date-input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text-1);
+  font-family: var(--font);
+  outline: none;
+  cursor: pointer;
+}
+.port-date-input:focus { border-color: var(--accent); }
+.port-date-input::-webkit-calendar-picker-indicator { filter: invert(0.5); cursor: pointer; }
+
+.port-chart-legend {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+.port-chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.port-chart-legend-dot {
+  width: 20px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.port-chart-wrap {
+  position: relative;
+  height: 220px;
+}
+
+.port-chart-summary {
+  display: flex;
+  gap: 20px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.port-chart-stat { display: flex; flex-direction: column; gap: 2px; }
+.port-chart-stat-label { font-size: 10px; color: var(--text-3); letter-spacing: 0.06em; text-transform: uppercase; }
+.port-chart-stat-value { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.port-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 220px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+/* Portfolio Breakdown */
+.port-breakdown-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 380px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Holdings Table */
+.port-table-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.port-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+.port-table th {
+  padding: 10px 12px;
+  text-align: right;
+  color: var(--text-3);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  user-select: none;
+  cursor: pointer;
+  transition: color 0.12s;
+}
+.port-table th:hover { color: var(--text-1); }
+.port-table th:first-child { text-align: left; padding-left: 16px; }
+.port-table th.sorted { color: var(--accent); }
+
+.port-table td {
+  padding: 10px 12px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  border-bottom: 1px solid rgba(37,43,59,0.6);
+  color: var(--text-2);
+}
+.port-table td:first-child { text-align: left; padding-left: 16px; }
+.port-table tbody tr:last-child td { border-bottom: none; }
+.port-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+/* Ticker cell with logo */
+.port-ticker-cell { display: flex; align-items: center; gap: 10px; }
+.port-ticker-logo {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--surface);
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+.port-ticker-logo-fallback {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.port-ticker-info { display: flex; flex-direction: column; gap: 1px; }
+.port-ticker-symbol { font-size: 12px; font-weight: 600; color: var(--text-1); letter-spacing: 0.03em; }
+.port-ticker-name   { font-size: 10px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+
+/* Sort arrow */
+.sort-arrow { margin-left: 4px; opacity: 0.5; font-size: 9px; }
+.sorted .sort-arrow { opacity: 1; }
+
+/* Change cell */
+.port-chg-pos { color: var(--green); font-weight: 500; }
+.port-chg-neg { color: var(--red);   font-weight: 500; }
+.port-chg-new { color: var(--accent); font-weight: 500; font-size: 10px; letter-spacing: 0.04em; }
+
+/* Return cells */
+.port-ret-pos { color: var(--green); }
+.port-ret-neg { color: var(--red);   }
+
+/* Loading skeleton */
+.port-skeleton {
+  background: linear-gradient(90deg, var(--card) 25%, var(--surface) 50%, var(--card) 75%);
+  background-size: 200% 100%;
+  animation: port-shimmer 1.4s infinite;
+  border-radius: 4px;
+  height: 14px;
+}
+@keyframes port-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (max-width: 960px) {
+  .port-top { grid-template-columns: 1fr; }
+  .port-right { order: -1; }
+}

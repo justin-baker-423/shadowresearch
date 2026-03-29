@@ -19,7 +19,7 @@ ChartJS.register(LineElement, PointElement, LinearScale, TimeScale, Filler, Tool
 
 // ── Period configuration ──────────────────────────────────────────────────────
 
-const PERIODS = ['D', 'W', 'M', 'Q', 'YTD', '1Y', '5Y', 'Custom'] as const
+const PERIODS = ['D', 'W', 'M', 'Q', 'YTD', '1Y', '5Y', 'Max'] as const
 type Period = typeof PERIODS[number]
 
 // ── Helper ────────────────────────────────────────────────────────────────────
@@ -33,17 +33,11 @@ function retColor(v: number) {
   return v >= 0 ? 'var(--green)' : 'var(--red)'
 }
 
-function toISODate(d: Date) {
-  return d.toISOString().slice(0, 10)
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function PerformanceChart() {
-  const [period, setPeriod]           = useState<Period>('1Y')
-  const [customStart, setCustomStart] = useState('')
-  const [customEnd,   setCustomEnd]   = useState(() => toISODate(new Date()))
-  const [data,  setData]              = useState<PerformanceData | null>(null)
+  const [period, setPeriod] = useState<Period>('1Y')
+  const [data,  setData]   = useState<PerformanceData | null>(null)
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState(false)
 
@@ -51,12 +45,7 @@ export default function PerformanceChart() {
     setLoading(true)
     setError(false)
     try {
-      const params = new URLSearchParams({ period })
-      if (period === 'Custom' && customStart && customEnd) {
-        params.set('start', customStart)
-        params.set('end',   customEnd)
-      }
-      const res  = await fetch(`/api/portfolio/performance?${params}`)
+      const res  = await fetch(`/api/portfolio/performance?period=${period}`)
       if (!res.ok) throw new Error('fetch failed')
       const json = await res.json() as PerformanceData
       setData(json)
@@ -65,12 +54,11 @@ export default function PerformanceChart() {
     } finally {
       setLoading(false)
     }
-  }, [period, customStart, customEnd])
+  }, [period])
 
   useEffect(() => {
-    if (period === 'Custom' && !customStart) return  // wait for user to pick a start date
     fetchData()
-  }, [fetchData, period, customStart])
+  }, [fetchData])
 
   // ── Chart config ────────────────────────────────────────────────────────────
 
@@ -78,7 +66,8 @@ export default function PerformanceChart() {
     : period === 'W' || period === 'M' ? 'day'
     : period === 'Q' || period === 'YTD' ? 'week'
     : period === '1Y' ? 'month'
-    : 'quarter'
+    : period === '5Y' ? 'quarter'
+    : 'year'  // Max
 
   const chartData = data && data.points.length > 0 ? {
     datasets: [
@@ -164,7 +153,7 @@ export default function PerformanceChart() {
     <div>
       {/* Period selectors */}
       <div className="port-chart-periods">
-        {PERIODS.filter(p => p !== 'Custom').map(p => (
+        {PERIODS.map(p => (
           <button
             key={p}
             className={`port-period-btn${period === p ? ' active' : ''}`}
@@ -173,35 +162,7 @@ export default function PerformanceChart() {
             {p}
           </button>
         ))}
-        <button
-          className={`port-period-btn${period === 'Custom' ? ' active' : ''}`}
-          onClick={() => setPeriod('Custom')}
-        >
-          Custom
-        </button>
       </div>
-
-      {/* Custom date range inputs */}
-      {period === 'Custom' && (
-        <div className="port-custom-range" style={{ marginBottom: 12 }}>
-          <input
-            type="date"
-            className="port-date-input"
-            value={customStart}
-            onChange={e => setCustomStart(e.target.value)}
-            max={customEnd}
-          />
-          <span style={{ color: 'var(--text-3)', fontSize: 11 }}>→</span>
-          <input
-            type="date"
-            className="port-date-input"
-            value={customEnd}
-            onChange={e => setCustomEnd(e.target.value)}
-            min={customStart}
-            max={toISODate(new Date())}
-          />
-        </div>
-      )}
 
       {/* Legend */}
       <div className="port-chart-legend">

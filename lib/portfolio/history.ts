@@ -28,6 +28,11 @@ function getPeriodParams(
     return { from: customStart, to, interval: days > 365 ? '1wk' : '1d' }
   }
 
+  if (period === 'Max' && customStart) {
+    // customStart is pre-computed as the earliest transaction date
+    return { from: customStart, to, interval: '1wk' }
+  }
+
   if (period === 'YTD') {
     return { from: new Date(now.getFullYear(), 0, 1), to, interval: '1d' }
   }
@@ -183,7 +188,18 @@ export async function computePerformanceSeries(
   customStart?:     Date,
   customEnd?:       Date,
 ): Promise<PerformanceData> {
-  const { from, to, interval } = getPeriodParams(period, customStart, customEnd)
+  // For 'Max', compute the inception date from the earliest equity transaction
+  let effectiveStart = customStart
+  if (period === 'Max') {
+    const equityTx = transactions.filter(
+      tx => (tx.assetClass === 'EQUITY' || tx.assetClass === 'ETF') && tx.ticker,
+    )
+    if (equityTx.length > 0) {
+      effectiveStart = new Date(Math.min(...equityTx.map(tx => tx.txDate.getTime())))
+    }
+  }
+
+  const { from, to, interval } = getPeriodParams(period, effectiveStart, customEnd)
 
   // Collect all equity tickers ever held
   const relevantTickers = new Set<string>()

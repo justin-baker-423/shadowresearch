@@ -5,12 +5,14 @@ import { getTeslaModel, TESLA_MODELS } from "@/lib/tesla-models"
 import { getLemonadeModel, LEMONADE_MODELS } from "@/lib/lemonade-models"
 import { getDeereModel, DEERE_MODELS } from "@/lib/deere-models"
 import { getCelsiusModel, CELSIUS_MODELS } from "@/lib/celsius-models"
+import { getAtlassianModel, ATLASSIAN_MODELS } from "@/lib/atlassian-models"
 import ModelShell from "@/components/ModelShell"
 import MetaModelShell from "@/components/MetaModelShell"
 import TeslaModelShell from "@/components/TeslaModelShell"
 import LemonadeModelShell from "@/components/LemonadeModelShell"
 import DeereModelShell from "@/components/DeereModelShell"
 import CelsiusModelShell from "@/components/CelsiusModelShell"
+import AtlassianModelShell from "@/components/AtlassianModelShell"
 
 export const revalidate = 300 // refresh prices every 5 minutes
 
@@ -45,12 +47,13 @@ export async function generateStaticParams() {
     ...LEMONADE_MODELS.map(m => ({ slug: m.slug })),
     ...DEERE_MODELS.map(m => ({ slug: m.slug })),
     ...CELSIUS_MODELS.map(m => ({ slug: m.slug })),
+    ...ATLASSIAN_MODELS.map(m => ({ slug: m.slug })),
   ]
 }
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params
-  const model  = getModel(slug) ?? getMetaModel(slug) ?? getTeslaModel(slug) ?? getLemonadeModel(slug) ?? getDeereModel(slug) ?? getCelsiusModel(slug)
+  const model  = getModel(slug) ?? getMetaModel(slug) ?? getTeslaModel(slug) ?? getLemonadeModel(slug) ?? getDeereModel(slug) ?? getCelsiusModel(slug) ?? getAtlassianModel(slug)
   if (!model) return {}
   return {
     title: `${model.ticker} DCF — ${model.name}`,
@@ -104,6 +107,15 @@ export default async function ModelPage({ params }: Props) {
     const adjusted  = livePrice ? { ...celsiusModel, currentPrice: livePrice } : celsiusModel
     const priceSource = livePrice ? "Live · NASDAQ" : "Hardcoded"
     return <CelsiusModelShell model={adjusted} priceSource={priceSource} />
+  }
+
+  // ── Atlassian R&D Capitalisation models ──────────────────────
+  const atlassianModel = getAtlassianModel(slug)
+  if (atlassianModel) {
+    const livePrice = await yahooPrice(atlassianModel.ticker)
+    const adjusted  = livePrice ? { ...atlassianModel, currentPrice: livePrice } : atlassianModel
+    const priceSource = livePrice ? "Live · NASDAQ" : "Hardcoded"
+    return <AtlassianModelShell model={adjusted} priceSource={priceSource} />
   }
 
   // ── Standard earnings-based models (SAP / Chipotle engine) ────

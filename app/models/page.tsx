@@ -11,6 +11,8 @@ import { runLemonadeDCF } from "@/lib/lemonade-engine"
 import { DEERE_MODELS } from "@/lib/deere-models"
 import { runDeereDCF } from "@/lib/deere-engine"
 import { CELSIUS_MODELS } from "@/lib/celsius-models"
+import { SNOWFLAKE_MODELS } from "@/lib/snowflake-models"
+import { runSnowflakeDCF } from "@/lib/snowflake-engine"
 
 export const revalidate = 300 // refresh every 5 minutes
 
@@ -153,6 +155,22 @@ export default async function Home() {
       const livePrice = await yahooPrice(m.ticker)
       const adj = livePrice ? { ...m, currentPrice: livePrice } : m
       const result = runDCF(adj, "base", adj.waccDefault, adj.termGrowth)
+      cards.push({
+        slug: m.slug, ticker: m.ticker, name: m.name, description: m.description,
+        lastUpdated: m.lastUpdated, accentColor: m.accentColor,
+        exchange: m.exchange ?? "", currency: "$",
+        cagr: result.impliedCAGR, updown: result.updown,
+        intrinsicPerShare: result.perShare, labelIV: "Base IV",
+      })
+    })
+  )
+
+  // ── Snowflake consumption-model FCF DCF ──────────────────────
+  await Promise.all(
+    SNOWFLAKE_MODELS.map(async m => {
+      const livePrice = await yahooPrice(m.ticker)
+      const adj = livePrice ? { ...m, currentPrice: livePrice } : m
+      const result = runSnowflakeDCF(adj, "base", adj.waccDefault, adj.exitMultipleDefault)
       cards.push({
         slug: m.slug, ticker: m.ticker, name: m.name, description: m.description,
         lastUpdated: m.lastUpdated, accentColor: m.accentColor,

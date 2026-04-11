@@ -9,6 +9,7 @@ import { DEERE_MODELS } from "@/lib/deere-models"
 import { CELSIUS_MODELS } from "@/lib/celsius-models"
 import { SNOWFLAKE_MODELS } from "@/lib/snowflake-models"
 import { ATLASSIAN_MODELS } from "@/lib/atlassian-models"
+import { NIKE_MODELS } from "@/lib/nike-models"
 import { runDCF } from "@/lib/dcf-engine"
 import { runMetaDCF } from "@/lib/meta-dcf-engine"
 import { runTeslaDCF } from "@/lib/tesla-engine"
@@ -16,6 +17,7 @@ import { runLemonadeDCF } from "@/lib/lemonade-engine"
 import { runDeereDCF } from "@/lib/deere-engine"
 import { runSnowflakeDCF } from "@/lib/snowflake-engine"
 import { runAtlassianDCF } from "@/lib/atlassian-engine"
+import { runNikeDCF } from "@/lib/nike-engine"
 
 export const metadata: Metadata = {
   title: "Shadow Research",
@@ -57,6 +59,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ...CELSIUS_MODELS.map(m => m.ticker),
     ...SNOWFLAKE_MODELS.map(m => m.ticker),
     ...ATLASSIAN_MODELS.map(m => m.ticker),
+    ...NIKE_MODELS.map(m => m.ticker),
     'EURUSD=X',
   ]
   const uniqueTickers = [...new Set(allTickers)]
@@ -120,6 +123,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     const adj = prices.get(m.ticker) ? { ...m, currentPrice: prices.get(m.ticker)! } : m
     const r = runSnowflakeDCF(adj, "base", adj.waccDefault, adj.exitMultipleDefault)
     items.push({ slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor, cagr: r.impliedCAGR })
+  }
+
+  for (const m of NIKE_MODELS) {
+    const adj = prices.get(m.ticker) ? { ...m, currentPrice: prices.get(m.ticker)! } : m
+    const r = runNikeDCF(adj, "base", adj.waccDefault, adj.termGrowth)
+    items.push({
+      slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor,
+      cagr: r.impliedCAGR,
+      extraInfo: `+ ${(r.avgDivYield * 100).toFixed(1)}% Div`,
+    })
   }
 
   items.sort((a, b) => b.cagr - a.cagr)

@@ -7,18 +7,30 @@ type SidebarEntry = {
   accentColor?: string; cagr?: number; extraInfo?: string
 }
 
+// Tickers whose logos are dark/black and need a white pill behind them
+const LIGHT_BG_TICKERS = new Set(['NKE'])
+
 function TickerLogo({ ticker, accentColor }: { ticker: string; accentColor?: string }) {
   const [failed, setFailed] = useState(false)
+  const needsLightBg = LIGHT_BG_TICKERS.has(ticker)
   if (!failed) {
     return (
-      <img
-        src={`/api/logo/${ticker}`}
-        alt={ticker}
-        width={20}
-        height={20}
-        onError={() => setFailed(true)}
-        style={{ borderRadius: 4, objectFit: 'contain', flexShrink: 0 }}
-      />
+      <span style={{
+        width: 20, height: 20, borderRadius: 4, flexShrink: 0,
+        background: needsLightBg ? '#fff' : 'transparent',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        padding: needsLightBg ? 2 : 0,
+        boxSizing: 'border-box',
+      }}>
+        <img
+          src={`/api/logo/${ticker}`}
+          alt={ticker}
+          width={needsLightBg ? 16 : 20}
+          height={needsLightBg ? 16 : 20}
+          onError={() => setFailed(true)}
+          style={{ borderRadius: needsLightBg ? 0 : 4, objectFit: 'contain', display: 'block' }}
+        />
+      </span>
     )
   }
   return (

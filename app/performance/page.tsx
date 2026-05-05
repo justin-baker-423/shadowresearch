@@ -2,6 +2,7 @@ import { computePortfolio } from '@/lib/portfolio/compute'
 import PortfolioBreakdown   from '@/components/portfolio/PortfolioBreakdown'
 import PerformanceChart     from '@/components/portfolio/PerformanceChart'
 import HoldingsTable        from '@/components/portfolio/HoldingsTable'
+import FcfNiChart           from '@/components/portfolio/FcfNiChart'
 
 // Revalidate every 15 minutes so live prices stay fresh
 export const revalidate = 900
@@ -102,6 +103,12 @@ export default async function PerformancePage() {
           Holdings data unavailable
         </div>
       )}
+
+      {/* FCF & Net Income Evolution */}
+      <div className="port-card" style={{ marginTop: 24 }}>
+        <div className="port-card-title">Portfolio FCF &amp; Net Income Evolution (2020–2025)</div>
+        <FcfNiChart />
+      </div>
 
       {/* Footnote */}
       {data && (

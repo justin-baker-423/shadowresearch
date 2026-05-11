@@ -36,6 +36,9 @@ import { getAtlassianModel } from '@/lib/atlassian-models'
 
 import { runNikeDCF }       from '@/lib/nike-engine'
 
+import { runTeslaDCF }      from '@/lib/tesla-engine'
+import { TESLA_MODELS }     from '@/lib/tesla-models'
+
 // ── Manual overrides (no DCF model; conviction-based estimate) ───
 const MANUAL_CAGR: Record<string, number> = {
   COIN: 0.15,  // difficult to value; pencilled in at above-market 15% (May 2026)
@@ -47,6 +50,13 @@ function cagrForTicker(ticker: string, livePrice: number): number | null {
   if (ticker.toUpperCase() in MANUAL_CAGR) return MANUAL_CAGR[ticker.toUpperCase()]
 
   try {
+    // ── Tesla (multi-segment, lookup by ticker not slug) ───────
+    const teslaModel = TESLA_MODELS.find(m => m.ticker === ticker.toUpperCase())
+    if (teslaModel) {
+      const m = { ...teslaModel, currentPrice: livePrice }
+      return runTeslaDCF(m, m.waccDefault, m.termGrowth).impliedCAGR
+    }
+
     // ── Meta (ROIC-driven) ─────────────────────────────────────
     const metaModel = getMetaModel(ticker.toLowerCase())
     if (metaModel) {

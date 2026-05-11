@@ -36,8 +36,16 @@ import { getAtlassianModel } from '@/lib/atlassian-models'
 
 import { runNikeDCF }       from '@/lib/nike-engine'
 
+// ── Manual overrides (no DCF model; conviction-based estimate) ───
+const MANUAL_CAGR: Record<string, number> = {
+  COIN: 0.15,  // difficult to value; pencilled in at above-market 15% (May 2026)
+}
+
 /** Returns the base-case implied 10-yr CAGR for a single ticker at the given live price. */
 function cagrForTicker(ticker: string, livePrice: number): number | null {
+  // Check manual overrides first
+  if (ticker.toUpperCase() in MANUAL_CAGR) return MANUAL_CAGR[ticker.toUpperCase()]
+
   try {
     // ── Meta (ROIC-driven) ─────────────────────────────────────
     const metaModel = getMetaModel(ticker.toLowerCase())

@@ -8,6 +8,7 @@ import { getCelsiusModel, CELSIUS_MODELS } from "@/lib/celsius-models"
 import { getAtlassianModel, ATLASSIAN_MODELS } from "@/lib/atlassian-models"
 import { getSnowflakeModel, SNOWFLAKE_MODELS } from "@/lib/snowflake-models"
 import { getNikeModel, NIKE_MODELS } from "@/lib/nike-models"
+import { getTsmModel, TSM_MODELS } from "@/lib/tsm-models"
 import ModelShell from "@/components/ModelShell"
 import MetaModelShell from "@/components/MetaModelShell"
 import TeslaModelShell from "@/components/TeslaModelShell"
@@ -17,6 +18,7 @@ import CelsiusModelShell from "@/components/CelsiusModelShell"
 import AtlassianModelShell from "@/components/AtlassianModelShell"
 import SnowflakeModelShell from "@/components/SnowflakeModelShell"
 import NikeModelShell from "@/components/NikeModelShell"
+import TsmModelShell from "@/components/TsmModelShell"
 
 export const revalidate = 300 // refresh prices every 5 minutes
 
@@ -54,12 +56,13 @@ export async function generateStaticParams() {
     ...ATLASSIAN_MODELS.map(m => ({ slug: m.slug })),
     ...SNOWFLAKE_MODELS.map(m => ({ slug: m.slug })),
     ...NIKE_MODELS.map(m => ({ slug: m.slug })),
+    ...TSM_MODELS.map(m => ({ slug: m.slug })),
   ]
 }
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params
-  const model  = getModel(slug) ?? getMetaModel(slug) ?? getTeslaModel(slug) ?? getLemonadeModel(slug) ?? getDeereModel(slug) ?? getCelsiusModel(slug) ?? getAtlassianModel(slug) ?? getSnowflakeModel(slug) ?? getNikeModel(slug)
+  const model  = getModel(slug) ?? getMetaModel(slug) ?? getTeslaModel(slug) ?? getLemonadeModel(slug) ?? getDeereModel(slug) ?? getCelsiusModel(slug) ?? getAtlassianModel(slug) ?? getSnowflakeModel(slug) ?? getNikeModel(slug) ?? getTsmModel(slug)
   if (!model) return {}
   return {
     title: `${model.ticker} DCF — ${model.name}`,
@@ -140,6 +143,15 @@ export default async function ModelPage({ params }: Props) {
     const adjusted  = livePrice ? { ...nikeModel, currentPrice: livePrice } : nikeModel
     const priceSource = livePrice ? "Live · NYSE" : "Hardcoded"
     return <NikeModelShell model={adjusted} priceSource={priceSource} />
+  }
+
+  // ── TSMC Pure-Play Foundry DCF ────────────────────────────────
+  const tsmModel = getTsmModel(slug)
+  if (tsmModel) {
+    const livePrice = await yahooPrice(tsmModel.ticker)
+    const adjusted  = livePrice ? { ...tsmModel, currentPrice: livePrice } : tsmModel
+    const priceSource = livePrice ? "Live · NYSE" : "Hardcoded"
+    return <TsmModelShell model={adjusted} priceSource={priceSource} />
   }
 
   // ── Standard earnings-based models (SAP / Chipotle engine) ────

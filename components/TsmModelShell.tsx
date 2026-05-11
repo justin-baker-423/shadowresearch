@@ -45,7 +45,7 @@ export default function TsmModelShell({ model, priceSource }: { model: ModelConf
     {
       label: "Enterprise Value",
       value: fB(M.ev, curr),
-      sub:   `PV FCFs ${fB(M.sumPvFcf, curr)} · PV TV ${fB(M.pvTv, curr)}`,
+      sub:   `PV Earnings ${fB(M.sumPvFcf, curr)} · PV TV ${fB(M.pvTv, curr)}`,
       color: "var(--text-1)",
     },
     {
@@ -61,9 +61,9 @@ export default function TsmModelShell({ model, priceSource }: { model: ModelConf
       color: "var(--text-1)",
     },
     {
-      label: `${model.baseYear + 10}E FCF Margin`,
-      value: fPct(M.rows[9].fcfM),
-      sub:   "NM + D&A (17%) − CapEx (30%)",
+      label: `${model.baseYear + 10}E NI Margin`,
+      value: fPct(M.rows[9].niM),
+      sub:   "Post-tax net income margin",
       color: scColors.color,
     },
     {
@@ -95,8 +95,8 @@ export default function TsmModelShell({ model, priceSource }: { model: ModelConf
           )}
         </div>
         <div className="model-subline">
-          FCF margin = Net Income + D&A (~17% rev) − CapEx (~30% rev) · 2026 CapEx budget $52–56B ·{" "}
-          Effective tax ~15% · Annual dividend $3.80/ADR · WACC {fPct(wacc)} · Terminal g {fPct(termG)}
+          Earnings-based DCF · CapEx treated as durable asset investment, not subtracted from earnings ·{" "}
+          Effective tax ~15% embedded in NI margins · Annual dividend $3.80/ADR · WACC {fPct(wacc)} · Terminal g {fPct(termG)}
         </div>
       </div>
 
@@ -175,9 +175,9 @@ export default function TsmModelShell({ model, priceSource }: { model: ModelConf
                   <th>Year</th>
                   <th>Revenue</th>
                   <th>Rev Δ</th>
-                  <th>FCF Margin</th>
-                  <th>FCF</th>
-                  <th>PV of FCF</th>
+                  <th>NI Margin</th>
+                  <th>Net Income</th>
+                  <th>PV of NI</th>
                 </tr>
               </thead>
               <tbody>
@@ -193,7 +193,7 @@ export default function TsmModelShell({ model, priceSource }: { model: ModelConf
                       <td style={{ color: r.revGrowth < 0 ? "var(--red)" : "var(--text-2)" }}>
                         {fPct(r.revGrowth)}
                       </td>
-                      <td style={{ color: scColors.color }}>{fPct(r.fcfM)}</td>
+                      <td style={{ color: scColors.color }}>{fPct(r.niM)}</td>
                       <td>{fB(r.fcf, curr)}</td>
                       <td style={{ color: "var(--accent)" }}>{fB(r.pvFcf, curr)}</td>
                     </tr>
@@ -253,7 +253,7 @@ export default function TsmModelShell({ model, priceSource }: { model: ModelConf
       {tab === "sensitivity" && (
         <div>
           <div className="section-label">
-            Intrinsic Value / ADR ({curr}) — {sc.charAt(0).toUpperCase() + sc.slice(1)} Revenue & FCF Profile
+            Intrinsic Value / ADR ({curr}) — {sc.charAt(0).toUpperCase() + sc.slice(1)} Revenue & NI Margin Profile
           </div>
           <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 14 }}>
             Rows = terminal growth · Columns = WACC · Highlighted = current sliders
@@ -323,7 +323,7 @@ export default function TsmModelShell({ model, priceSource }: { model: ModelConf
                     {m2.updown > 0 ? "+" : ""}{f1(m2.updown)}% vs {curr}{model.currentPrice}
                   </div>
                   <div className="sc-card-stat">2035E Rev: {fB(m2.rows[9].rev, curr)}</div>
-                  <div className="sc-card-stat">2035E FCF Margin: {fPct(m2.rows[9].fcfM)}</div>
+                  <div className="sc-card-stat">2035E NI Margin: {fPct(m2.rows[9].niM)}</div>
                   <div className="sc-card-stat">EV: {fB(m2.ev, curr)}</div>
                 </div>
               )
@@ -350,17 +350,17 @@ export default function TsmModelShell({ model, priceSource }: { model: ModelConf
               ],
             },
             {
-              title: "FCF Margin Bridge",
+              title: "Net Income Margins",
               color: "var(--green)",
               rows: [
-                ["Framework",           "FCF = Net Income + D&A − CapEx (pre-embedded in all margin inputs)"],
-                ["D&A assumption",      "~17% of revenue · heavy foundry depreciation on $40–56B annual CapEx"],
-                ["CapEx assumption",    "~30% of revenue · 2026 guidance $52–56B · 3nm/2nm capacity buildout"],
-                ["Net capex drag",      "−13pp vs net income margin (30% CapEx − 17% D&A)"],
-                ["Effective tax rate",  "~15% (embedded) · TSMC benefits from Taiwan R&D tax incentives"],
-                ["Bear FCF margins",    model.scenarios.bear.niMargin.slice(0, 5).map(m => fPct(m)).join(" → ") + " → " + fPct(model.scenarios.bear.niMargin[9]) + " (2035E)"],
-                ["Base FCF margins",    model.scenarios.base.niMargin.slice(0, 5).map(m => fPct(m)).join(" → ") + " → " + fPct(model.scenarios.base.niMargin[9]) + " (2035E)"],
-                ["Bull FCF margins",    model.scenarios.bull.niMargin.slice(0, 5).map(m => fPct(m)).join(" → ") + " → " + fPct(model.scenarios.bull.niMargin[9]) + " (2035E)"],
+                ["Methodology",         "Earnings-based DCF · CapEx treated as value-creating fab investment"],
+                ["Rationale",           "TSMC's CapEx builds durable leading-edge capacity worth > GAAP depreciation implies"],
+                ["NI derivation",       "OM × (1 − ~15% tax) + interest income · Q1 2026A: OM 58% → NI ~50%"],
+                ["Effective tax rate",  "~15% embedded · TSMC benefits from Taiwan R&D tax incentives"],
+                ["CapEx (reference)",   "~30% of revenue · 2026 guidance $52–56B · 3nm/2nm capacity buildout"],
+                ["Bear NI margins",     model.scenarios.bear.niMargin.slice(0, 5).map(m => fPct(m)).join(" → ") + " → " + fPct(model.scenarios.bear.niMargin[9]) + " (2035E)"],
+                ["Base NI margins",     model.scenarios.base.niMargin.slice(0, 5).map(m => fPct(m)).join(" → ") + " → " + fPct(model.scenarios.base.niMargin[9]) + " (2035E)"],
+                ["Bull NI margins",     model.scenarios.bull.niMargin.slice(0, 5).map(m => fPct(m)).join(" → ") + " → " + fPct(model.scenarios.bull.niMargin[9]) + " (2035E)"],
                 ["Implied GM (base)",   "Peak ~66% (Q1 2026A: 66.2%) · trough ~54–55% · recovery mid-60s"],
                 ["Implied GM (bull)",   "Peak ~68% · trough ~57% · recovery high-60s"],
               ],
@@ -405,8 +405,8 @@ export default function TsmModelShell({ model, priceSource }: { model: ModelConf
 
       <div className="disclaimer">
         For informational and educational purposes only · Not investment advice · All figures USD ·
-        FCF margin = Net Income + D&A (~17% rev) − CapEx (~30% rev) · No buyback modeled ·
-        $3.80/ADR annual dividend paid from FCF · 5.19B ADRs (1 ADR = 5 ordinary shares) · Updated {model.lastUpdated}
+        Earnings-based DCF · CapEx treated as durable asset investment · No buyback modeled ·
+        $3.80/ADR annual dividend · 5.19B ADRs (1 ADR = 5 ordinary shares) · Updated {model.lastUpdated}
       </div>
     </div>
   )

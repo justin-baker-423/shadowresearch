@@ -1,12 +1,16 @@
 // ─────────────────────────────────────────────────────────────────
 //  tsm-models.ts  —  Taiwan Semiconductor Manufacturing (TSM) DCF
 //
-//  FCF margin approach: each niMargin value is the effective FCF yield,
-//  pre-embedding D&A (~17% rev) and CapEx (~30% rev):
-//    FCF = Net Income + D&A − CapEx  ≈  Net Income − 13pp
+//  Earnings-based approach: each niMargin value is the post-tax net
+//  income margin. CapEx is treated as value-creating investment in
+//  durable fab assets (not subtracted from the earnings stream).
 //  taxRate and sbcHaircut are both 0 since margins are already
-//  post-tax and CapEx-adjusted. No buyback program; dividends paid
-//  from FCF ($3.80/ADR annually, growing with revenue over time).
+//  post-tax (effective ~15% embedded). No buyback program; dividends
+//  paid from earnings ($3.80/ADR annually).
+//
+//  NI margin derivation: OM × (1 − ~15% tax) + interest income
+//    e.g. Q1 2026A OM 58.0% → NI margin ~50% at peak
+//  NI ≈ FCF + 13pp  (D&A 17% − CapEx 30% = −13pp drag reversed)
 // ─────────────────────────────────────────────────────────────────
 
 import type { ModelConfig } from "./models"
@@ -38,11 +42,11 @@ export const TSM_MODELS: ModelConfig[] = [
 
     scenarios: {
       // ── Bear ───────────────────────────────────────────────────────
-      // Slower peak growth, deeper cycle trough, margins recover to mid-50s GM (~low-30s FCF)
+      // Slower peak growth, deeper cycle trough; NI margins trough low-40s
       // Implied GM: peak ~64%, trough ~52%, recovery ~58%
       bear: {
         revGrowth: [ 0.28,  0.20, -0.05, -0.04,  0.17,  0.17,  0.17,  0.17,  0.17,  0.17],
-        niMargin:  [ 0.35,  0.31,  0.24,  0.23,  0.26,  0.28,  0.30,  0.31,  0.32,  0.32],
+        niMargin:  [ 0.48,  0.44,  0.37,  0.36,  0.39,  0.41,  0.43,  0.44,  0.45,  0.45],
       },
 
       // ── Base ───────────────────────────────────────────────────────
@@ -50,7 +54,7 @@ export const TSM_MODELS: ModelConfig[] = [
       // Implied GM: peak ~66%, trough ~54%, recovery to mid-60s
       base: {
         revGrowth: [ 0.30,  0.27, -0.03, -0.02,  0.17,  0.17,  0.17,  0.17,  0.17,  0.17],
-        niMargin:  [ 0.37,  0.34,  0.28,  0.27,  0.30,  0.32,  0.34,  0.36,  0.37,  0.37],
+        niMargin:  [ 0.50,  0.47,  0.41,  0.40,  0.43,  0.45,  0.47,  0.49,  0.50,  0.50],
       },
 
       // ── Bull ───────────────────────────────────────────────────────
@@ -58,7 +62,7 @@ export const TSM_MODELS: ModelConfig[] = [
       // Implied GM: peak ~68%, trough ~57%, recovery to high-60s
       bull: {
         revGrowth: [ 0.33,  0.30, -0.01,  0.02,  0.17,  0.17,  0.17,  0.17,  0.17,  0.17],
-        niMargin:  [ 0.39,  0.37,  0.31,  0.30,  0.33,  0.35,  0.36,  0.37,  0.38,  0.39],
+        niMargin:  [ 0.52,  0.50,  0.44,  0.43,  0.46,  0.48,  0.49,  0.50,  0.51,  0.52],
       },
     },
   },

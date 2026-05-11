@@ -166,7 +166,7 @@ export function computeForwardReturn(holdingDetails: HoldingDetail[]): ForwardRe
       contribution: (r.weightPct / totalWeight) * r.cagr,
       isManual:     r.isManual,
     }))
-    .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+    .sort((a, b) => b.weightPct - a.weightPct)
 
   const total = contributions.reduce((s, c) => s + c.contribution, 0)
 

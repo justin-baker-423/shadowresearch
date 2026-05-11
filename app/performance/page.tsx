@@ -115,7 +115,11 @@ export default async function PerformancePage() {
                       </tr>
                     ))}
                     <tr style={{ borderTop: '1px solid var(--text-3)' }}>
-                      <td colSpan={3} style={{ paddingTop: 5, fontWeight: 600, color: 'var(--text-2)', fontSize: 11 }}>Total</td>
+                      <td style={{ paddingTop: 5, fontWeight: 600, color: 'var(--text-2)', fontSize: 11 }}>Total</td>
+                      <td style={{ paddingTop: 5, textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--text-2)' }}>
+                        {fwdReturn.contributions.reduce((s, c) => s + c.weightPct, 0).toFixed(1)}%
+                      </td>
+                      <td />
                       <td style={{ paddingTop: 5, textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: fwdReturn.total >= 0 ? 'var(--green)' : 'var(--red)' }}>
                         {fmtPct(fwdReturn.total * 100)}
                       </td>

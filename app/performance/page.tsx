@@ -1,5 +1,6 @@
-import { computePortfolio } from '@/lib/portfolio/compute'
-import PortfolioBreakdown   from '@/components/portfolio/PortfolioBreakdown'
+import { computePortfolio }     from '@/lib/portfolio/compute'
+import { computeForwardReturn } from '@/lib/portfolio/forward-return'
+import PortfolioBreakdown       from '@/components/portfolio/PortfolioBreakdown'
 import PerformanceChart     from '@/components/portfolio/PerformanceChart'
 import HoldingsTable        from '@/components/portfolio/HoldingsTable'
 import FcfNiChart           from '@/components/portfolio/FcfNiChart'
@@ -29,6 +30,7 @@ function fmtPct(n: number | undefined | null) {
 
 export default async function PerformancePage() {
   const data = await computePortfolio().catch(() => null)
+  const forwardReturn = data ? computeForwardReturn(data.holdingDetails) : null
 
   return (
     <div className="port-page">
@@ -63,6 +65,11 @@ export default async function PerformancePage() {
                     label="Lifetime TWR CAGR"
                     value={fmtPct(data.totals.lifetimeTwrCagr)}
                     positive={data.totals.lifetimeTwrCagr >= 0}
+                  />
+                  <StatRow
+                    label="Est. Forward Return (10yr)"
+                    value={forwardReturn != null ? fmtPct(forwardReturn * 100) : '—'}
+                    positive={forwardReturn != null ? forwardReturn >= 0 : undefined}
                   />
                 </tbody>
               </table>

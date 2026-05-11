@@ -10,6 +10,7 @@ import { CELSIUS_MODELS } from "@/lib/celsius-models"
 import { SNOWFLAKE_MODELS } from "@/lib/snowflake-models"
 import { ATLASSIAN_MODELS } from "@/lib/atlassian-models"
 import { NIKE_MODELS } from "@/lib/nike-models"
+import { TSM_MODELS } from "@/lib/tsm-models"
 import { runDCF } from "@/lib/dcf-engine"
 import { runMetaDCF } from "@/lib/meta-dcf-engine"
 import { runTeslaDCF } from "@/lib/tesla-engine"
@@ -60,6 +61,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ...SNOWFLAKE_MODELS.map(m => m.ticker),
     ...ATLASSIAN_MODELS.map(m => m.ticker),
     ...NIKE_MODELS.map(m => m.ticker),
+    ...TSM_MODELS.map(m => m.ticker),
     'EURUSD=X',
   ]
   const uniqueTickers = [...new Set(allTickers)]
@@ -133,6 +135,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       cagr: r.impliedCAGR,
       extraInfo: `+ ${(r.avgDivYield * 100).toFixed(1)}% Div`,
     })
+  }
+
+  for (const m of TSM_MODELS) {
+    const adj = prices.get(m.ticker) ? { ...m, currentPrice: prices.get(m.ticker)! } : m
+    const r = runDCF(adj, "base", adj.waccDefault, adj.termGrowth)
+    items.push({ slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor, cagr: r.impliedCAGR })
   }
 
   items.sort((a, b) => b.cagr - a.cagr)

@@ -115,23 +115,50 @@ function cagrForTicker(ticker: string, livePrice: number): number | null {
   }
 }
 
+export interface ForwardReturnContribution {
+  ticker:       string
+  weightPct:    number   // raw portfolio weight (e.g. 31.0 = 31%)
+  cagr:         number   // implied 10-yr CAGR decimal (e.g. 0.15)
+  contribution: number   // weighted contribution to total (decimal, e.g. 0.046)
+  isManual:     boolean  // true if using a manual override rather than a DCF model
+}
+
+export interface ForwardReturnResult {
+  total:         number                        // MV-weighted avg CAGR decimal
+  contributions: ForwardReturnContribution[]   // per-holding breakdown, sorted by |contribution| desc
+}
+
 /**
  * Returns the market-value-weighted average base-case implied 10-yr CAGR
- * across all equity holdings that have a DCF model, expressed as a decimal
- * (e.g. 0.12 = 12%).  Returns null if no holdings have a model.
+ * across all equity holdings that have a DCF model, plus a per-holding breakdown.
+ * Returns null if no holdings have a model.
  */
-export function computeForwardReturn(holdingDetails: HoldingDetail[]): number | null {
-  let weightedSum = 0
+export function computeForwardReturn(holdingDetails: HoldingDetail[]): ForwardReturnResult | null {
+  const rows: Array<{ ticker: string; weightPct: number; cagr: number; isManual: boolean }> = []
   let totalWeight = 0
 
   for (const h of holdingDetails) {
+    const isManual = h.ticker.toUpperCase() in MANUAL_CAGR
     const cagr = cagrForTicker(h.ticker, h.currentPrice)
     if (cagr == null) continue
-    weightedSum += cagr * h.weightPct
+    rows.push({ ticker: h.ticker, weightPct: h.weightPct, cagr, isManual })
     totalWeight += h.weightPct
   }
 
-  if (totalWeight === 0) return null
-  // Re-normalise in case some holdings lack a model (so weights don't sum to 100)
-  return weightedSum / totalWeight
+  if (totalWeight === 0 || rows.length === 0) return null
+
+  const contributions: ForwardReturnContribution[] = rows
+    .map(r => ({
+      ticker:       r.ticker,
+      weightPct:    r.weightPct,
+      cagr:         r.cagr,
+      // normalised weight × cagr = this holding's share of the total
+      contribution: (r.weightPct / totalWeight) * r.cagr,
+      isManual:     r.isManual,
+    }))
+    .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+
+  const total = contributions.reduce((s, c) => s + c.contribution, 0)
+
+  return { total, contributions }
 }

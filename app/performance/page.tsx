@@ -1,5 +1,5 @@
-import { computePortfolio }     from '@/lib/portfolio/compute'
-import { computeForwardReturn } from '@/lib/portfolio/forward-return'
+import { computePortfolio }                       from '@/lib/portfolio/compute'
+import { computeForwardReturn, ForwardReturnResult } from '@/lib/portfolio/forward-return'
 import PortfolioBreakdown       from '@/components/portfolio/PortfolioBreakdown'
 import PerformanceChart     from '@/components/portfolio/PerformanceChart'
 import HoldingsTable        from '@/components/portfolio/HoldingsTable'
@@ -30,7 +30,7 @@ function fmtPct(n: number | undefined | null) {
 
 export default async function PerformancePage() {
   const data = await computePortfolio().catch(() => null)
-  const forwardReturn = data ? computeForwardReturn(data.holdingDetails) : null
+  const fwdReturn: ForwardReturnResult | null = data ? computeForwardReturn(data.holdingDetails) : null
 
   return (
     <div className="port-page">
@@ -68,14 +68,60 @@ export default async function PerformancePage() {
                   />
                   <StatRow
                     label="Est. Forward Return (10yr)"
-                    value={forwardReturn != null ? fmtPct(forwardReturn * 100) : '—'}
-                    positive={forwardReturn != null ? forwardReturn >= 0 : undefined}
+                    value={fwdReturn != null ? fmtPct(fwdReturn.total * 100) : '—'}
+                    positive={fwdReturn != null ? fwdReturn.total >= 0 : undefined}
                   />
                 </tbody>
               </table>
             ) : (
               <div style={{ color: 'var(--text-3)', fontSize: 12 }}>
                 Unable to load data
+              </div>
+            )}
+
+            {/* Forward return breakdown */}
+            {fwdReturn && (
+              <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 6 }}>
+                  Forward Return Breakdown
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                  <thead>
+                    <tr style={{ color: 'var(--text-3)' }}>
+                      <th style={{ textAlign: 'left',  paddingBottom: 4, fontWeight: 500 }}>Ticker</th>
+                      <th style={{ textAlign: 'right', paddingBottom: 4, fontWeight: 500 }}>Weight</th>
+                      <th style={{ textAlign: 'right', paddingBottom: 4, fontWeight: 500 }}>CAGR</th>
+                      <th style={{ textAlign: 'right', paddingBottom: 4, fontWeight: 500 }}>Contribution</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fwdReturn.contributions.map(c => (
+                      <tr key={c.ticker} style={{ borderTop: '1px solid var(--border)' }}>
+                        <td style={{ paddingTop: 4, paddingBottom: 4, color: 'var(--text-1)', fontWeight: 600 }}>
+                          {c.ticker}
+                          {c.isManual && (
+                            <span style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 400, marginLeft: 4 }}>est.</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'right', color: 'var(--text-2)', fontVariantNumeric: 'tabular-nums' }}>
+                          {c.weightPct.toFixed(1)}%
+                        </td>
+                        <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: c.cagr >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                          {fmtPct(c.cagr * 100)}
+                        </td>
+                        <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: c.contribution >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>
+                          {fmtPct(c.contribution * 100)}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr style={{ borderTop: '1px solid var(--text-3)' }}>
+                      <td colSpan={3} style={{ paddingTop: 5, fontWeight: 600, color: 'var(--text-2)', fontSize: 11 }}>Total</td>
+                      <td style={{ paddingTop: 5, textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: fwdReturn.total >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                        {fmtPct(fwdReturn.total * 100)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

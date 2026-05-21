@@ -27,7 +27,7 @@ export default function QxoModelShell({
   const [wacc,    setWacc]    = useState(model.waccDefault)
   const [termG,   setTermG]   = useState(model.termGrowth)
   const [sharesM, setSharesM] = useState(Math.round(model.sharesOut * 1000))
-  const [maRate,  setMaRate]  = useState(0)
+  const [maRate,  setMaRate]  = useState(1.0)
   const [tab,     setTab]     = useState<"model" | "sensitivity" | "assumptions">("model")
 
   const sharesB = sharesM / 1000
@@ -178,12 +178,12 @@ export default function QxoModelShell({
         <div className="control-group">
           <div className="section-label">M&A reinvestment: {Math.round(maRate * 100)}% of UFCF</div>
           <input
-            type="range" min={0} max={60} step={5} value={maRate * 100}
+            type="range" min={0} max={100} step={5} value={maRate * 100}
             onChange={e => setMaRate(Number(e.target.value) / 100)}
             style={{ width: 180, accentColor: scC.color }}
           />
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-3)", width: 180 }}>
-            <span>0% (none)</span><span>60%</span>
+            <span>0% (none)</span><span>100%</span>
           </div>
         </div>
 

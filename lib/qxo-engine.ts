@@ -112,8 +112,9 @@ export function runQxoDCF(
   }
 
   const sumPvFcf = rows.reduce((s, r) => s + r.pvFcf, 0)
-  const ufcf10   = rows[9].ufcf
-  const tv       = ufcf10 * (1 + termG) / (wacc - termG)
+  // TV uses ufcfPreMa: in terminal year the assembled business's full earnings
+  // power is capitalized; ongoing M&A at termG is embedded in the perpetuity.
+  const tv       = rows[9].ufcfPreMa * (1 + termG) / (wacc - termG)
   const pvTv     = tv / Math.pow(1 + wacc, 10)
   const ev       = sumPvFcf + pvTv
   const equity   = ev - model.netDebt
@@ -131,7 +132,7 @@ export function runQxoDCF(
     perShare,
     updown:   (perShare / model.currentPrice - 1) * 100,
     tvWeight: pvTv / ev,
-    gordon:   tv / ufcf10,
+    gordon:   tv / rows[9].ufcfPreMa,
     impliedCAGR,
   }
 }

@@ -11,6 +11,7 @@ import { SNOWFLAKE_MODELS } from "@/lib/snowflake-models"
 import { ATLASSIAN_MODELS } from "@/lib/atlassian-models"
 import { NIKE_MODELS } from "@/lib/nike-models"
 import { TSM_MODELS } from "@/lib/tsm-models"
+import { QXO_MODELS } from "@/lib/qxo-models"
 import { runDCF } from "@/lib/dcf-engine"
 import { runMetaDCF } from "@/lib/meta-dcf-engine"
 import { runTeslaDCF } from "@/lib/tesla-engine"
@@ -19,6 +20,7 @@ import { runDeereDCF } from "@/lib/deere-engine"
 import { runSnowflakeDCF } from "@/lib/snowflake-engine"
 import { runAtlassianDCF } from "@/lib/atlassian-engine"
 import { runNikeDCF } from "@/lib/nike-engine"
+import { runQxoDCF } from "@/lib/qxo-engine"
 
 export const metadata: Metadata = {
   title: "Shadow Research",
@@ -62,6 +64,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ...ATLASSIAN_MODELS.map(m => m.ticker),
     ...NIKE_MODELS.map(m => m.ticker),
     ...TSM_MODELS.map(m => m.ticker),
+    ...QXO_MODELS.map(m => m.ticker),
     'EURUSD=X',
   ]
   const uniqueTickers = [...new Set(allTickers)]
@@ -146,6 +149,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       cagr: r.impliedCAGR,
       extraInfo: `+ ${(divYield * 100).toFixed(1)}% Div`,
     })
+  }
+
+  for (const m of QXO_MODELS) {
+    const adj = prices.get(m.ticker) ? { ...m, currentPrice: prices.get(m.ticker)! } : m
+    const r = runQxoDCF(adj, "base", adj.waccDefault, adj.termGrowth, adj.sharesOut)
+    items.push({ slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor, cagr: r.impliedCAGR })
   }
 
   items.sort((a, b) => b.cagr - a.cagr)

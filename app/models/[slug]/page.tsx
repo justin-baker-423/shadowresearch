@@ -10,6 +10,7 @@ import { getSnowflakeModel, SNOWFLAKE_MODELS } from "@/lib/snowflake-models"
 import { getNikeModel, NIKE_MODELS } from "@/lib/nike-models"
 import { getTsmModel, TSM_MODELS } from "@/lib/tsm-models"
 import { getQxoModel, QXO_MODELS } from "@/lib/qxo-models"
+import { getHDModel, HD_MODELS } from "@/lib/hd-models"
 import ModelShell from "@/components/ModelShell"
 import MetaModelShell from "@/components/MetaModelShell"
 import TeslaModelShell from "@/components/TeslaModelShell"
@@ -21,6 +22,7 @@ import SnowflakeModelShell from "@/components/SnowflakeModelShell"
 import NikeModelShell from "@/components/NikeModelShell"
 import TsmModelShell from "@/components/TsmModelShell"
 import QxoModelShell from "@/components/QxoModelShell"
+import HDModelShell from "@/components/HDModelShell"
 
 export const revalidate = 300 // refresh prices every 5 minutes
 
@@ -60,12 +62,13 @@ export async function generateStaticParams() {
     ...NIKE_MODELS.map(m => ({ slug: m.slug })),
     ...TSM_MODELS.map(m => ({ slug: m.slug })),
     ...QXO_MODELS.map(m => ({ slug: m.slug })),
+    ...HD_MODELS.map(m => ({ slug: m.slug })),
   ]
 }
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params
-  const model  = getModel(slug) ?? getMetaModel(slug) ?? getTeslaModel(slug) ?? getLemonadeModel(slug) ?? getDeereModel(slug) ?? getCelsiusModel(slug) ?? getAtlassianModel(slug) ?? getSnowflakeModel(slug) ?? getNikeModel(slug) ?? getTsmModel(slug) ?? getQxoModel(slug)
+  const model  = getModel(slug) ?? getMetaModel(slug) ?? getTeslaModel(slug) ?? getLemonadeModel(slug) ?? getDeereModel(slug) ?? getCelsiusModel(slug) ?? getAtlassianModel(slug) ?? getSnowflakeModel(slug) ?? getNikeModel(slug) ?? getTsmModel(slug) ?? getQxoModel(slug) ?? getHDModel(slug)
   if (!model) return {}
   return {
     title: `${model.ticker} DCF — ${model.name}`,
@@ -164,6 +167,15 @@ export default async function ModelPage({ params }: Props) {
     const adjusted  = livePrice ? { ...qxoModel, currentPrice: livePrice } : qxoModel
     const priceSource = livePrice ? "Live · NYSE" : "Hardcoded"
     return <QxoModelShell model={adjusted} priceSource={priceSource} />
+  }
+
+  // ── Home Depot UFCF two-slider model ─────────────────────────
+  const hdModel = getHDModel(slug)
+  if (hdModel) {
+    const livePrice = await yahooPrice(hdModel.ticker)
+    const adjusted  = livePrice ? { ...hdModel, currentPrice: livePrice } : hdModel
+    const priceSource = livePrice ? "Live · NYSE" : "Hardcoded"
+    return <HDModelShell model={adjusted} priceSource={priceSource} />
   }
 
   // ── Standard earnings-based models (SAP / Chipotle engine) ────

@@ -27,12 +27,13 @@ export default function QxoModelShell({
   const [wacc,    setWacc]    = useState(model.waccDefault)
   const [termG,   setTermG]   = useState(model.termGrowth)
   const [sharesM, setSharesM] = useState(Math.round(model.sharesOut * 1000))
+  const [maRate,  setMaRate]  = useState(0)
   const [tab,     setTab]     = useState<"model" | "sensitivity" | "assumptions">("model")
 
   const sharesB = sharesM / 1000
 
-  const M    = useMemo(() => runQxoDCF(model, sc, wacc, termG, sharesB),    [model, sc, wacc, termG, sharesB])
-  const SENS = useMemo(() => buildQxoSensitivity(model, sc, sharesB),        [model, sc, sharesB])
+  const M    = useMemo(() => runQxoDCF(model, sc, wacc, termG, sharesB, maRate),    [model, sc, wacc, termG, sharesB, maRate])
+  const SENS = useMemo(() => buildQxoSensitivity(model, sc, sharesB, maRate),        [model, sc, sharesB, maRate])
 
   const scC    = SC_COLORS[sc]
   const upCol  = M.updown > 0 ? "var(--green)" : "var(--red)"
@@ -76,7 +77,9 @@ export default function QxoModelShell({
     {
       label: `${lastRow.year}E Revenue`,
       value: fB(lastRow.rev),
-      sub:   `${f2(lastRow.rev / model.baseRevenue)}× 2026E base`,
+      sub:   maRate > 0
+        ? `Org ${fB(lastRow.organicRev)} · M&A ${fB(lastRow.maRev)} (${f1(lastRow.maRev / lastRow.rev * 100)}%)`
+        : `${f2(lastRow.rev / model.baseRevenue)}× 2026E base`,
       color: "var(--text-1)",
     },
     {
@@ -105,7 +108,7 @@ export default function QxoModelShell({
         <div className="model-subline">
           Pro forma 2026E revenue ${model.baseRevenue}B ·{" "}
           {model.startMargin * 100}% starting EBITDA margin · {sharesM.toLocaleString()}M diluted shares ·
-          Net debt ${model.netDebt}B · Price ref ${model.currentPrice}{" "}
+          Net debt ${model.netDebt}B{maRate > 0 ? ` · M&A reinvestment ${Math.round(maRate * 100)}% of UFCF @ ${model.maMultiple}× EBITDA` : ""} · Price ref ${model.currentPrice}{" "}
           {priceSource && (
             <span style={{ color: priceSource.startsWith("Live") ? "var(--green)" : "var(--text-3)", fontWeight: 500 }}>
               ({priceSource})
@@ -171,6 +174,19 @@ export default function QxoModelShell({
           </div>
         </div>
 
+        {/* M&A reinvestment */}
+        <div className="control-group">
+          <div className="section-label">M&A reinvestment: {Math.round(maRate * 100)}% of UFCF</div>
+          <input
+            type="range" min={0} max={60} step={5} value={maRate * 100}
+            onChange={e => setMaRate(Number(e.target.value) / 100)}
+            style={{ width: 180, accentColor: scC.color }}
+          />
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-3)", width: 180 }}>
+            <span>0% (none)</span><span>60%</span>
+          </div>
+        </div>
+
         {/* tabs */}
         <div className="control-group">
           <div className="section-label">View</div>
@@ -212,11 +228,12 @@ export default function QxoModelShell({
                 <tr>
                   <th>Year</th>
                   <th>Revenue</th>
+                  {maRate > 0 && <th style={{ color: "var(--purple)" }}>M&A Rev</th>}
                   <th>EBITDA Margin</th>
-                  <th>EBITDA</th>
                   <th>NOPAT</th>
                   <th>ΔWC</th>
-                  <th>UFCF</th>
+                  {maRate > 0 && <th style={{ color: "var(--purple)" }}>M&A Spend</th>}
+                  <th>{maRate > 0 ? "Distr. UFCF" : "UFCF"}</th>
                   <th>PV of FCF</th>
                 </tr>
               </thead>
@@ -229,10 +246,19 @@ export default function QxoModelShell({
                         {r.year}
                       </td>
                       <td>{fB(r.rev)}</td>
+                      {maRate > 0 && (
+                        <td style={{ color: r.maRev > 0 ? "var(--purple)" : "var(--text-3)", fontSize: 11 }}>
+                          {r.maRev > 0.005 ? fB(r.maRev) : "—"}
+                        </td>
+                      )}
                       <td style={{ color: scC.color }}>{fPct(r.ebitdaM)}</td>
-                      <td>{fB(r.ebitda)}</td>
                       <td>{fB(r.nopat)}</td>
                       <td style={{ color: "var(--amber)" }}>(${f1(r.dwc * 1000)}M)</td>
+                      {maRate > 0 && (
+                        <td style={{ color: "var(--purple)", fontSize: 11 }}>
+                          {r.maSpend > 0.005 ? `(${fB(r.maSpend)})` : "—"}
+                        </td>
+                      )}
                       <td style={{ fontWeight: 600 }}>{fB(r.ufcf)}</td>
                       <td style={{ color: "var(--accent)" }}>{fB(r.pvFcf)}</td>
                     </tr>

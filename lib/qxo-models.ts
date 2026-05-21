@@ -39,6 +39,7 @@ export interface QxoModelConfig {
 
   netDebt:      number   // $B — positive = net debt
   sharesOut:    number   // billions — fully diluted default (slider-overrideable)
+  maMultiple:   number   // acquisition price multiple (11x EBITDA per user assumption)
 
   waccDefault:  number
   termGrowth:   number
@@ -68,6 +69,7 @@ const QXO: QxoModelConfig = {
 
   netDebt:       7.0,     // $7.0B net debt at TopBuild close (gross $9.1B − ~$2.1B cash)
   sharesOut:     1.724,   // 1,724M fully diluted (all preferred converted; see research context)
+  maMultiple:    11,      // 11x EBITDA acquisition price (per user assumption)
 
   waccDefault:   0.10,
   termGrowth:    0.030,

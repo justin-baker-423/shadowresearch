@@ -4,6 +4,8 @@
 // 3. We can swap logo sources without touching client code
 
 import { NextResponse } from 'next/server'
+import { readFile } from 'fs/promises'
+import path from 'path'
 
 // Ticker → primary domain (keep in sync with lib/portfolio/logos.ts)
 const TICKER_DOMAINS: Record<string, string> = {
@@ -29,6 +31,7 @@ const TICKER_DOMAINS: Record<string, string> = {
   FIG:  'figma.com',
   SAP:  'sap.com',
   NKE:  'nike.com',
+  QXO:  'qxo.com',
 }
 
 const CACHE_SECONDS = 60 * 60 * 24   // 24 h
@@ -55,6 +58,23 @@ export async function GET(
   { params }: { params: { ticker: string } },
 ) {
   const ticker = params.ticker.toUpperCase()
+
+  // Static override: drop a file at public/logos/<TICKER>.{png,svg,jpg} to bypass all external sources
+  for (const ext of ['png', 'svg', 'jpg', 'webp']) {
+    try {
+      const filePath = path.join(process.cwd(), 'public', 'logos', `${ticker}.${ext}`)
+      const buf = await readFile(filePath)
+      const ct = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' ? 'image/jpeg' : `image/${ext}`
+      return new NextResponse(buf, {
+        headers: {
+          'Content-Type':                ct,
+          'Cache-Control':               `public, max-age=${CACHE_SECONDS}, s-maxage=${CACHE_SECONDS}, stale-while-revalidate=3600`,
+          'Access-Control-Allow-Origin': '*',
+        },
+      })
+    } catch { /* file not found, try next */ }
+  }
+
   const domain = TICKER_DOMAINS[ticker]
   if (!domain) return new NextResponse(null, { status: 404 })
 
@@ -62,6 +82,11 @@ export async function GET(
     `https://logo.clearbit.com/${domain}?size=128`,
     `https://img.logo.dev/${domain}?token=pk_X-1ZO13GSgeOoUrIuJ6BeQ`,  // logo.dev free tier
     `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=128`,
+    `https://financialmodelingprep.com/image-stock/${ticker}.png`,      // FMP — covers all NYSE/NASDAQ tickers
+    `https://logo.twelvedata.com/${ticker.toLowerCase()}.png`,          // Twelve Data stock logos
+    `https://${domain}/apple-touch-icon.png`,
+    `https://${domain}/favicon-32x32.png`,
+    `https://${domain}/favicon.ico`,
   ]
 
   for (const url of sources) {

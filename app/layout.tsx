@@ -12,6 +12,7 @@ import { ATLASSIAN_MODELS } from "@/lib/atlassian-models"
 import { NIKE_MODELS } from "@/lib/nike-models"
 import { TSM_MODELS } from "@/lib/tsm-models"
 import { QXO_MODELS } from "@/lib/qxo-models"
+import { HD_MODELS } from "@/lib/hd-models"
 import { runDCF } from "@/lib/dcf-engine"
 import { runMetaDCF } from "@/lib/meta-dcf-engine"
 import { runTeslaDCF } from "@/lib/tesla-engine"
@@ -21,6 +22,7 @@ import { runSnowflakeDCF } from "@/lib/snowflake-engine"
 import { runAtlassianDCF } from "@/lib/atlassian-engine"
 import { runNikeDCF } from "@/lib/nike-engine"
 import { runQxoDCF } from "@/lib/qxo-engine"
+import { runHDDCF } from "@/lib/hd-engine"
 
 export const metadata: Metadata = {
   title: "Shadow Research",
@@ -65,6 +67,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ...NIKE_MODELS.map(m => m.ticker),
     ...TSM_MODELS.map(m => m.ticker),
     ...QXO_MODELS.map(m => m.ticker),
+    ...HD_MODELS.map(m => m.ticker),
     'EURUSD=X',
   ]
   const uniqueTickers = [...new Set(allTickers)]
@@ -155,6 +158,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     const adj = prices.get(m.ticker) ? { ...m, currentPrice: prices.get(m.ticker)! } : m
     const r = runQxoDCF(adj, "base", adj.waccDefault, adj.termGrowth, adj.sharesOut)
     items.push({ slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor, cagr: r.impliedCAGR })
+  }
+
+  for (const m of HD_MODELS) {
+    const adj = prices.get(m.ticker) ? { ...m, currentPrice: prices.get(m.ticker)! } : m
+    const r = runHDDCF(adj, m.scenarios.base.revGrowth, m.scenarios.base.opMargin, adj.waccDefault, adj.termGrowth)
+    const divYield = r.rows[0].dps / adj.currentPrice
+    items.push({
+      slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor,
+      cagr: r.impliedCAGR,
+      extraInfo: `+ ${(divYield * 100).toFixed(1)}% Div`,
+    })
   }
 
   items.sort((a, b) => b.cagr - a.cagr)

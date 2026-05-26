@@ -22,20 +22,28 @@ export default function MetaModelShell({
   model: MetaModelConfig
   priceSource?: string
 }) {
-  const [sc,    setSc]    = useState<Scenario>("base")
-  const [wacc,  setWacc]  = useState(model.waccDefault)
-  const [termG, setTermG] = useState(model.termGrowth)
-  const [roic,  setRoic]  = useState(model.roicDefault)
-  const [tab,   setTab]   = useState<"model" | "sensitivity" | "assumptions">("model")
+  const [sc,          setSc]          = useState<Scenario>("base")
+  const [wacc,        setWacc]        = useState(model.waccDefault)
+  const [termG,       setTermG]       = useState(model.termGrowth)
+  const [roic,        setRoic]        = useState(model.roicDefault)
+  const [adMktGrowth, setAdMktGrowth] = useState(model.adMarketGrowthDefault)
+  const [tab,         setTab]         = useState<"model" | "sensitivity" | "assumptions">("model")
 
-  const M    = useMemo(() => runMetaDCF(model, sc, wacc, termG, roic),    [model, sc, wacc, termG, roic])
-  const SENS = useMemo(() => buildMetaSensitivity(model, sc, termG),       [model, sc, termG])
+  const M    = useMemo(
+    () => runMetaDCF(model, sc, wacc, termG, roic, adMktGrowth),
+    [model, sc, wacc, termG, roic, adMktGrowth],
+  )
+  const SENS = useMemo(
+    () => buildMetaSensitivity(model, sc, termG, wacc),
+    [model, sc, termG, wacc],
+  )
 
   const scColors = SC_COLORS[sc]
   const accent   = model.accentColor ?? "var(--accent)"
   const upCol    = M.updown > 0 ? "var(--green)" : "var(--red)"
 
-  // Sensitivity color thresholds relative to current price
+  const finalRow = M.rows[9]
+
   function sensColor(val: number) {
     const ratio = val / model.currentPrice
     if (ratio >= 1.3) return "sens-cell-green"
@@ -72,20 +80,26 @@ export default function MetaModelShell({
     },
     {
       label: "2035E FoA Revenue",
-      value: fB(M.rows[9].rev),
-      sub:   `${f2(M.rows[9].rev / model.foaBaseRevenue)}× FY${model.baseYear} base`,
+      value: fB(finalRow.rev),
+      sub:   `${f2(finalRow.rev / model.foaBaseRevenue)}× FY${model.baseYear} base`,
       color: "var(--text-1)",
     },
     {
       label: "2035E FCF",
-      value: fB(M.rows[9].fcf),
-      sub:   `FCF margin ${fPct(M.rows[9].fcfM)}`,
+      value: fB(finalRow.fcf),
+      sub:   `FCF margin ${fPct(finalRow.fcfM)}`,
       color: scColors.color,
     },
     {
+      label: "2035E Global Ad Share",
+      value: fPct(finalRow.mktShare),
+      sub:   `of $${Math.round(finalRow.adTAM)}B total ad market · from ${fPct(M.rows[0].mktShare)} in 2026`,
+      color: "var(--purple)",
+    },
+    {
       label: "2035E Shares",
-      value: f1(M.rows[9].shares) + "B",
-      sub:   `−${f1((1 - M.rows[9].shares / model.sharesOut) * 100)}% vs today`,
+      value: f1(finalRow.shares) + "B",
+      sub:   `−${f1((1 - finalRow.shares / model.sharesOut) * 100)}% vs today`,
       color: "var(--purple)",
     },
   ]
@@ -120,9 +134,8 @@ export default function MetaModelShell({
           )}
         </div>
         <div className="model-subline">
-          Capex-Adjusted NOPAT engine · FCF = NOPAT + D&amp;A − Capex ·
-          ROIC-driven growth from FY2027 · FY2026 anchored to guidance ·
-          WACC {fPct(wacc)} · Terminal g {fPct(termG)} · ROIC {fPct(roic)}
+          Three-driver revenue model · {fPct(adMktGrowth)} market floor + AI shareGain + ROIC × Net Capex(t−2) ·
+          Capex lag 2 yrs · WACC {fPct(wacc)} · Terminal g {fPct(termG)} · ROIC {fPct(roic)}
         </div>
       </div>
 
@@ -144,9 +157,22 @@ export default function MetaModelShell({
           </div>
         </div>
 
+        {/* Ad market growth */}
+        <div className="control-group">
+          <div className="section-label">Ad Market Growth: {fPct(adMktGrowth)}</div>
+          <input
+            type="range" min={4} max={10} step={0.5} value={adMktGrowth * 100}
+            onChange={e => setAdMktGrowth(Number(e.target.value) / 100)}
+            style={{ width: 180, accentColor: scColors.color }}
+          />
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-3)", width: 180 }}>
+            <span>4%</span><span>10%</span>
+          </div>
+        </div>
+
         {/* ROIC */}
         <div className="control-group">
-          <div className="section-label">ROIC: {fPct(roic)}</div>
+          <div className="section-label">Capex ROIC: {fPct(roic)}</div>
           <input
             type="range" min={12} max={30} step={1} value={roic * 100}
             onChange={e => setRoic(Number(e.target.value) / 100)}
@@ -224,6 +250,7 @@ export default function MetaModelShell({
                   <th>Year</th>
                   <th>FoA Revenue</th>
                   <th>Rev Δ</th>
+                  <th>Ad Mkt Share</th>
                   <th>FoA Op Margin</th>
                   <th>NOPAT</th>
                   <th>D&amp;A</th>
@@ -233,11 +260,11 @@ export default function MetaModelShell({
                 </tr>
               </thead>
               <tbody>
-                {M.rows.map((r, i) => {
-                  const isGuided   = r.year === 2026
-                  const isMilestone = r.year === 2031  // phase 2 start
-                  const isPhase2   = r.year >= 2031
-                  const fcfNeg     = r.fcf < 0
+                {M.rows.map((r) => {
+                  const isGuided    = r.year === 2026
+                  const isMilestone = r.year === 2031
+                  const isPhase2    = r.year >= 2031
+                  const fcfNeg      = r.fcf < 0
                   return (
                     <tr
                       key={r.year}
@@ -260,6 +287,9 @@ export default function MetaModelShell({
                           : fPct(r.revGrowth)
                         }
                       </td>
+                      <td style={{ color: "var(--purple)", fontSize: 11 }}>
+                        {fPct(r.mktShare)}
+                      </td>
                       <td style={{ color: scColors.color }}>{fPct(r.foaOpMargin)}</td>
                       <td>{fB(r.nopat)}</td>
                       <td style={{ color: "var(--text-2)" }}>{fB(r.da)}</td>
@@ -276,13 +306,13 @@ export default function MetaModelShell({
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={8} style={{ color: "var(--text-3)", fontSize: 11, textAlign: "left" }}>
+                  <td colSpan={9} style={{ color: "var(--text-3)", fontSize: 11, textAlign: "left" }}>
                     Terminal value · g={fPct(termG)} · WACC={fPct(wacc)} · {f1(M.gordon)}× Gordon multiple
                   </td>
                   <td style={{ color: "var(--accent)", fontWeight: 600 }}>{fB(M.pvTv)}</td>
                 </tr>
                 <tr className="ev-row">
-                  <td colSpan={8} style={{ color: "var(--accent)", fontWeight: 600, textAlign: "left" }}>
+                  <td colSpan={9} style={{ color: "var(--accent)", fontWeight: 600, textAlign: "left" }}>
                     Enterprise Value
                   </td>
                   <td style={{ color: "var(--accent)", fontWeight: 700, fontSize: 14 }}>{fB(M.ev)}</td>
@@ -298,11 +328,12 @@ export default function MetaModelShell({
               ["Enterprise Value",                      fB(M.ev),                                          "var(--text-1)"],
               [`(+) Net cash (FY${model.baseYear}A)`,   `$${f1(model.netCash)}B`,                          "var(--green)" ],
               ["Equity Value",                          fB(M.equity),                                      "var(--accent)"],
-              ["÷ Shares (post-buyback)",               f1(M.rows[9].shares) + "B",                        "var(--text-2)"],
+              ["÷ Shares (post-buyback)",               f1(finalRow.shares) + "B",                         "var(--text-2)"],
               ["Intrinsic Value / Share",               fShare(M.perShare),                                scColors.color ],
               ["Current price reference",               `$${model.currentPrice}`,                          "var(--text-3)"],
               ["Implied upside / (downside)",           `${M.updown > 0 ? "+" : ""}${f1(M.updown)}%`,     upCol          ],
               ["10-yr implied CAGR",                    `${M.impliedCAGR > 0 ? "+" : ""}${f1(M.impliedCAGR * 100)}%`, upCol],
+              ["2035E global ad share",                 fPct(finalRow.mktShare),                           "var(--purple)" ],
             ].map(([k, v, col]) => (
               <div key={k} className="bridge-row">
                 <span className="bridge-label">{k}</span>
@@ -318,21 +349,28 @@ export default function MetaModelShell({
                 className="phase-dot"
                 style={{ background: "var(--red-dim)", border: "1px solid rgba(248,113,113,.4)" }}
               />
-              2026: Investment year · negative FCF expected
+              2026: Guidance anchor · FCF negative · ~100% of cash flow absorbed by capex
             </div>
             <div className="phase-item">
               <span
                 className="phase-dot"
                 style={{ background: scColors.color + "22", border: `1px solid ${scColors.color}55` }}
               />
-              2027–2030: J-curve recovery
+              2027–2028: Near-zero FCF · AI shareGain + $125B capex monetises (2028 re-acceleration)
             </div>
             <div className="phase-item">
               <span
                 className="phase-dot"
                 style={{ background: "var(--purple-dim)", border: "1px solid rgba(167,139,250,.4)" }}
               />
-              2031–2035: Terminal approach
+              2029–2031: shareGain fades · capex contribution sustains growth above market floor
+            </div>
+            <div className="phase-item">
+              <span
+                className="phase-dot"
+                style={{ background: "rgba(167,139,250,.1)", border: "1px solid rgba(167,139,250,.3)" }}
+              />
+              2032–2035: Growth converges toward 7–9% · market floor + residual capex ROIC
             </div>
             <span style={{ fontSize: 11, color: scColors.color }}>★ = Phase 2 start (2031)</span>
           </div>
@@ -346,44 +384,44 @@ export default function MetaModelShell({
             Intrinsic Value / Share ($) — {sc.charAt(0).toUpperCase() + sc.slice(1)} Margin &amp; Capex Profile
           </div>
           <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 14 }}>
-            Rows = ROIC · Columns = WACC · Terminal growth held at {fPct(termG)} · Highlighted = current sliders
+            Rows = Ad Market Growth · Columns = Capex ROIC · WACC held at {fPct(wacc)} · Terminal g {fPct(termG)} · Highlighted = current sliders
           </div>
           <div style={{ overflowX: "auto" }}>
             <table className="sens-table">
               <thead>
                 <tr>
-                  <th style={{ textAlign: "left" }}>ROIC ↓ / WACC →</th>
-                  {SENS.waccs.map(w => (
+                  <th style={{ textAlign: "left" }}>Ad Mkt Growth ↓ / ROIC →</th>
+                  {SENS.roics.map(r => (
                     <th
-                      key={w}
+                      key={r}
                       style={{
-                        color:      Math.abs(w - wacc) < 0.001 ? scColors.color : "var(--text-3)",
-                        fontWeight: Math.abs(w - wacc) < 0.001 ? 700 : 400,
+                        color:      Math.abs(r - roic) < 0.001 ? scColors.color : "var(--text-3)",
+                        fontWeight: Math.abs(r - roic) < 0.001 ? 700 : 400,
                       }}
                     >
-                      {fPct(w)}
+                      {fPct(r)}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {SENS.roics.map((r, ri) => (
-                  <tr key={r}>
+                {SENS.adMktGrowths.map((g, gi) => (
+                  <tr key={g}>
                     <td
                       style={{
-                        color:      Math.abs(r - roic) < 0.001 ? scColors.color : "var(--text-2)",
-                        fontWeight: Math.abs(r - roic) < 0.001 ? 700 : 400,
+                        color:      Math.abs(g - adMktGrowth) < 0.001 ? scColors.color : "var(--text-2)",
+                        fontWeight: Math.abs(g - adMktGrowth) < 0.001 ? 700 : 400,
                       }}
                     >
-                      {fPct(r)}
+                      {fPct(g)}
                     </td>
-                    {SENS.waccs.map((w, ci) => {
-                      const val = SENS.grid[ri][ci]
-                      const sel = Math.abs(w - wacc) < 0.001 && Math.abs(r - roic) < 0.001
+                    {SENS.roics.map((r, ci) => {
+                      const val = SENS.grid[gi][ci]
+                      const sel = Math.abs(g - adMktGrowth) < 0.001 && Math.abs(r - roic) < 0.001
                       const cls = sensColor(val)
                       return (
                         <td
-                          key={w}
+                          key={r}
                           className={`${cls} ${sel ? "sens-cell-selected" : ""}`}
                           style={sel ? { borderColor: scColors.color, color: scColors.color } : {}}
                         >
@@ -413,11 +451,11 @@ export default function MetaModelShell({
 
           {/* scenario compare */}
           <div className="section-label" style={{ marginTop: 24 }}>
-            All Three Scenarios at {fPct(model.waccDefault)} WACC / {fPct(model.termGrowth)} Terminal Growth / {fPct(model.roicDefault)} ROIC
+            All Three Scenarios at {fPct(model.waccDefault)} WACC / {fPct(model.termGrowth)} Terminal Growth / {fPct(model.roicDefault)} ROIC / {fPct(model.adMarketGrowthDefault)} Ad Growth
           </div>
           <div className="sc-compare">
             {(["bear", "base", "bull"] as Scenario[]).map(s => {
-              const m2 = runMetaDCF(model, s, model.waccDefault, model.termGrowth, model.roicDefault)
+              const m2 = runMetaDCF(model, s, model.waccDefault, model.termGrowth, model.roicDefault, model.adMarketGrowthDefault)
               const mt = SC_COLORS[s]
               return (
                 <div key={s} className="sc-card" style={{ background: mt.dim + "88", border: `1px solid ${mt.color}44` }}>
@@ -430,6 +468,7 @@ export default function MetaModelShell({
                   </div>
                   <div className="sc-card-stat">2035E Rev: {fB(m2.rows[9].rev)}</div>
                   <div className="sc-card-stat">2035E FCF: {fB(m2.rows[9].fcf)}</div>
+                  <div className="sc-card-stat">2035E Ad Share: {fPct(m2.rows[9].mktShare)}</div>
                   <div className="sc-card-stat">EV: {fB(m2.ev)}</div>
                 </div>
               )
@@ -446,7 +485,7 @@ export default function MetaModelShell({
               title: "Investment Framework",
               color: "var(--accent)",
               rows: [
-                ["Engine",            "Capex-Adjusted NOPAT (Damodaran)"],
+                ["Engine",            "Capex-Adjusted NOPAT · Two-Driver Revenue Model"],
                 ["FCF formula",       "NOPAT + D&A − Capex"],
                 ["Asset useful life", `${model.assetLife} years → ${fPct(1 / model.assetLife)} D&A rate`],
                 ["PP&E base (FY2026 start)", `$${model.basePPE}B gross`],
@@ -455,8 +494,25 @@ export default function MetaModelShell({
               ],
             },
             {
-              title: "Operating Margin Path",
+              title: "Revenue Growth Drivers",
               color: "var(--green)",
+              rows: [
+                ["Formula",                `adMarketGrowth + shareGain(t) + ROIC × max(0, NetCapex(t−2)) / Rev(t−1)`],
+                ["Driver 1 — Market floor",  `${fPct(model.adMarketGrowth)} annual global ad TAM growth · permanent`],
+                ["Driver 2 — AI advantage",  "shareGain: compound monetization (Advantage+, Llama, WhatsApp) · decays to 0"],
+                ["Bear shareGain (27→35)",   model.scenarios.bear.shareGainSchedule.map(g => fPct(g)).join(" → ")],
+                ["Base shareGain (27→35)",   model.scenarios.base.shareGainSchedule.map(g => fPct(g)).join(" → ")],
+                ["Bull shareGain (27→35)",   model.scenarios.bull.shareGainSchedule.map(g => fPct(g)).join(" → ")],
+                ["Driver 3 — Capex upside",  "ROIC × net capex from 2 years prior / prior-year revenue"],
+                ["Capex monetisation lag",   "2 years · FY2026 $125B capex monetises in FY2028"],
+                ["FY2027 seed (t−2)",        `FY2025 net capex $${model.netCapexSeed}B (actual)`],
+                ["Global ad TAM (2025)",     `$${model.adTam2025}B · growing at ${fPct(model.adMarketGrowth)}/yr`],
+                ["Starting share",           `~${fPct(model.foaBaseRevenue / model.adTam2025)} of total global advertising`],
+              ],
+            },
+            {
+              title: "Operating Margin Path",
+              color: "var(--text-1)",
               rows: [
                 ["FY2026 anchor",            fPct(model.scenarios.base.foaOpMargin[0]) + " (all scenarios)"],
                 ["Bear path (2026→2035)",     model.scenarios.bear.foaOpMargin.map(m => fPct(m)).join(" → ")],
@@ -472,7 +528,6 @@ export default function MetaModelShell({
               rows: [
                 ["FY2026 capex / revenue",    fPct(model.capexYear1 / model.foaYear1Revenue) + " (guidance-implied)"],
                 ["Base capex path (2027→35)", model.scenarios.base.capexPct.map(c => fPct(c)).join(" → ")],
-                ["Revenue growth driver",     "ROIC × Net Capex(t−1) / NOPAT(t−1) from FY2027"],
                 ["Default ROIC",              fPct(model.roicDefault) + " (adjustable via slider)"],
                 ["Buyback schedule",          model.buybackSchedule.map(b => fPct(b)).join(" → ")],
                 ["Shares outstanding",        model.sharesOut + "B diluted"],
@@ -485,6 +540,7 @@ export default function MetaModelShell({
                 ["Default WACC",              fPct(model.waccDefault)],
                 ["Default terminal growth",   fPct(model.termGrowth)],
                 ["Default ROIC",              fPct(model.roicDefault)],
+                ["Default ad market growth",  fPct(model.adMarketGrowthDefault)],
                 ["Gordon multiple (defaults)", f1((1 + model.termGrowth) / (model.waccDefault - model.termGrowth)) + "×"],
                 ["Net cash (FY2025A)",        `$${model.netCash}B — added to equity value`],
                 ["Current price reference",   `$${model.currentPrice}/share`],
@@ -507,8 +563,8 @@ export default function MetaModelShell({
 
       <div className="disclaimer">
         For informational and educational purposes only · Not investment advice · All figures in USD ·
-        Capex-Adjusted NOPAT engine · FCF = NOPAT + D&amp;A − Capex · Family of Apps only · Reality Labs excluded ·
-        FY2026 anchored to management guidance · FY2027+ growth derived from ROIC × reinvestment rate ·
+        Three-Driver Revenue Model · FCF = NOPAT + D&amp;A − Capex · Family of Apps only · Reality Labs excluded ·
+        FY2026 anchored to guidance · FY2027+ = {fPct(adMktGrowth)} market floor + AI shareGain + ROIC × Net Capex(t−2) ·
         Updated {model.lastUpdated}
       </div>
     </div>

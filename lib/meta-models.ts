@@ -15,7 +15,13 @@ export interface MetaScenarioAssumptions {
   foaOpMargin: number[]
   // 9 values  — FY2027–2035 capex as % of that year's FoA revenue
   // (FY2026 capex is absolute, anchored to guidance at $125B)
+  // 2027–2028 elevated (~0.47–0.50) to absorb FCF; steps down from 2029
   capexPct: number[]
+  // 9 values — FY2027–2035 AI competitive advantage premium (decimal)
+  // Represents compound monetization (Advantage+, Llama, WhatsApp, Reels) that
+  // predates and is distinct from the infrastructure capex cycle.
+  // Starts large, decays to zero as the advantage normalises vs competitors.
+  shareGainSchedule: number[]
 }
 
 export interface MetaModelConfig {
@@ -53,6 +59,15 @@ export interface MetaModelConfig {
   assetLife:    number       // useful life in years (drives daRate = 1/assetLife)
   basePPE:      number       // gross PP&E at start of FY2026 ($B)
   capexYear1:   number       // FY2026 absolute capex guidance ($B)
+
+  // ── Two-driver revenue growth model ──────────────────────────
+  // RevGrowth(t) = adMarketGrowth + ROIC × max(0, NetCapex(t−2)) / Rev(t−1)
+  adMarketGrowth: number     // annual growth rate of total global ad TAM (decimal)
+  adMarketGrowthDefault: number  // default slider value
+  adTam2025:      number     // total global advertising market in 2025 ($B)
+  // FY2025 actual net capex (Capex − D&A): seeds the 2-yr lag for FY2027 growth
+  // Derived: PPE_start_2025 = (basePPE − capex2025 × 0.95) / 0.90; D&A = PPE_start × 0.10 + capex2025 × 0.05
+  netCapexSeed:   number     // FY2025 net capex ($B)
 
   scenarios: Record<Scenario, MetaScenarioAssumptions>
 
@@ -93,26 +108,39 @@ export const META_MODELS: MetaModelConfig[] = [
     basePPE:     176.4,      // gross PP&E at 1-Jan-2026 ($B)
     capexYear1:  125.0,      // FY2026 capex guidance ($B, absolute)
 
+    // Two-driver revenue growth
+    adMarketGrowth:        0.07,   // 7% annual global ad TAM growth (base)
+    adMarketGrowthDefault: 0.07,
+    adTam2025:             1000,   // $1T total global advertising in 2025 ($B)
+    // FY2025: capex $38.8B; PPE_start = (176.4 − 38.8×0.95)/0.90 = $154.9B; D&A = $15.5+$1.9 = $17.4B
+    netCapexSeed:          21.4,   // FY2025 net capex ($B)
+
     accentColor: "#0082fb",  // Meta blue
 
     scenarios: {
       bear: {
         // Margins: slower ramp, plateau at 46%
         foaOpMargin: [0.41, 0.40, 0.40, 0.42, 0.44, 0.45, 0.46, 0.46, 0.46, 0.46],
-        // Capex as % of revenue: slower step-down; ROIC = 12% in this scenario
-        capexPct:    [0.42, 0.38, 0.32, 0.28, 0.25, 0.22, 0.21, 0.20, 0.20],
+        // 2027–2028 elevated for near-zero FCF; step-down from 2029
+        capexPct:    [0.44, 0.43, 0.32, 0.28, 0.25, 0.22, 0.21, 0.20, 0.20],
+        // AI advantage erodes quickly — cheap ad solutions from Google/TikTok close the gap
+        shareGainSchedule: [0.07, 0.05, 0.03, 0.01, 0, 0, 0, 0, 0],
       },
       base: {
         // Margins: steady expansion to 52% by 2031
         foaOpMargin: [0.41, 0.41, 0.42, 0.44, 0.47, 0.50, 0.52, 0.52, 0.52, 0.52],
-        // Capex normalises toward 20% of revenue by 2031
-        capexPct:    [0.42, 0.37, 0.30, 0.26, 0.23, 0.20, 0.20, 0.20, 0.20],
+        // 2027–2028 elevated for near-zero FCF; normalises toward 20% by 2032
+        capexPct:    [0.47, 0.48, 0.30, 0.26, 0.23, 0.20, 0.20, 0.20, 0.20],
+        // AI advantage (Advantage+, Llama, WhatsApp, Reels) normalises by 2032
+        shareGainSchedule: [0.11, 0.09, 0.06, 0.04, 0.02, 0, 0, 0, 0],
       },
       bull: {
         // Margins: faster ramp to 55% by 2033
         foaOpMargin: [0.41, 0.42, 0.44, 0.47, 0.50, 0.52, 0.54, 0.55, 0.55, 0.55],
-        // Slightly higher capex early (AI buildout pays off faster); ROIC = 28%
-        capexPct:    [0.44, 0.40, 0.34, 0.28, 0.24, 0.21, 0.20, 0.20, 0.20],
+        // Aggressive capex through 2028; Meta locks in infrastructure lead
+        capexPct:    [0.50, 0.50, 0.34, 0.28, 0.24, 0.21, 0.20, 0.20, 0.20],
+        // Advantage persists longer — AI moat proves durable through 2033
+        shareGainSchedule: [0.13, 0.11, 0.08, 0.06, 0.04, 0.02, 0, 0, 0],
       },
     },
   },

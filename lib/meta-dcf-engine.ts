@@ -1,14 +1,23 @@
 // ─────────────────────────────────────────────────────────────────
-//  meta-dcf-engine.ts  —  Capex-Adjusted NOPAT valuation engine.
+//  meta-dcf-engine.ts  —  Three-Driver Capex-Adjusted NOPAT engine.
 //
-//  Framework (Damodaran reinvestment-rate driven):
-//    FCF = NOPAT + D&A − Capex
-//    NOPAT = FoA Revenue × FoA Op Margin × (1 − tax)
-//    D&A = PP&E_begin × daRate + Capex_new × daRate × 0.5  (half-year)
-//    RevGrowth(t) = ROIC × max(0, NetCapex(t−1)) / NOPAT(t−1)
+//  Revenue growth formula (FY2027 onward):
+//    RevGrowth(t) = adMarketGrowth
+//                 + shareGain(t)
+//                 + ROIC × max(0, NetCapex(t−2)) / Rev(t−1)
 //
-//  Year 1 (FY2026): guidance-anchored (revenue & capex are absolute).
-//  Years 2–10: ROIC-driven revenue growth; capex as % of revenue.
+//    Driver 1 — Market floor:  global ad TAM grows at adMarketGrowth (permanent)
+//    Driver 2 — AI advantage:  shareGain(t) from scenario schedule, decays to 0
+//    Driver 3 — Capex upside:  2-yr-lagged net capex monetised at ROIC
+//
+//  FY2026 is guidance-anchored (revenue & capex are absolute).
+//  FY2027 growth is seeded by FY2025 actual net capex (model.netCapexSeed).
+//  Capex in FY2027–2028 is elevated to absorb ~100% of FCF (near-zero free cash).
+//
+//  FCF = NOPAT + D&A − Capex
+//  NOPAT = FoA Revenue × FoA Op Margin × (1 − tax)
+//  D&A = PP&E_begin × daRate + Capex_new × daRate × 0.5  (half-year)
+//
 //  Reality Labs is excluded throughout.
 // ─────────────────────────────────────────────────────────────────
 
@@ -28,6 +37,8 @@ export interface MetaDCFRow {
   pvFcf:       number   // PV of FCF
   shares:      number   // diluted shares after buybacks ($B)
   ppe:         number   // gross PP&E at end of period ($B)
+  adTAM:       number   // total global ad market this year ($B)
+  mktShare:    number   // Meta's implied share of total global ad market (decimal)
 }
 
 export interface MetaDCFResult {
@@ -44,19 +55,21 @@ export interface MetaDCFResult {
 }
 
 export function runMetaDCF(
-  model:  MetaModelConfig,
-  sc:     Scenario,
-  wacc:   number,
-  termG:  number,
-  roic:   number,
+  model:       MetaModelConfig,
+  sc:          Scenario,
+  wacc:        number,
+  termG:       number,
+  roic:        number,
+  adMktGrowth?: number,   // optional — falls back to model.adMarketGrowth
 ): MetaDCFResult {
   const {
     foaBaseRevenue, foaYear1Revenue,
     sharesOut, netCash, currentPrice,
     taxRate, buybackSchedule, assetLife,
-    basePPE, capexYear1,
+    basePPE, capexYear1, netCapexSeed, adTam2025,
   } = model
-  const { foaOpMargin, capexPct } = model.scenarios[sc]
+  const adMarketGrowth = adMktGrowth ?? model.adMarketGrowth
+  const { foaOpMargin, capexPct, shareGainSchedule } = model.scenarios[sc]
 
   const daRate = 1 / assetLife   // 0.10 for 10-yr useful life
 
@@ -66,18 +79,17 @@ export function runMetaDCF(
 
   // ── Year 1 (FY2026): guidance anchor ─────────────────────────
   const rev1    = foaYear1Revenue
-  const capex1  = capexYear1                               // $125B absolute
-  const da1     = basePPE * daRate + capex1 * daRate * 0.5 // half-year convention
+  const capex1  = capexYear1
+  const da1     = basePPE * daRate + capex1 * daRate * 0.5
   const netCap1 = capex1 - da1
   const nopat1  = rev1 * foaOpMargin[0] * (1 - taxRate)
   const fcf1    = nopat1 + da1 - capex1
+  const adTAM1  = adTam2025 * Math.pow(1 + adMarketGrowth, 1)  // 2026 TAM
 
   ppe    = ppe - da1 + capex1
   shares = shares * (1 - buybackSchedule[0])
 
-  let prevRev     = rev1
-  let prevNopat   = nopat1
-  let prevNetCapex = netCap1
+  let prevRev = rev1
 
   rows.push({
     year:        2026,
@@ -93,15 +105,20 @@ export function runMetaDCF(
     pvFcf:       fcf1 / Math.pow(1 + wacc, 1),
     shares,
     ppe,
+    adTAM:       adTAM1,
+    mktShare:    rev1 / adTAM1,
   })
 
-  // ── Years 2–10 (FY2027–2035): ROIC-driven ───────────────────
+  // ── Years 2–10 (FY2027–2035): two-driver growth ──────────────
   for (let i = 1; i < 10; i++) {
-    // Damodaran: RevGrowth = ROIC × Reinvestment Rate = ROIC × NetCapex / NOPAT
-    const revGrowth = roic * Math.max(0, prevNetCapex) / prevNopat
+    // 2-year lag: FY2027 (i=1) uses FY2025 seed; FY2028+ uses rows[i-2]
+    const netCapexLagged = i === 1 ? netCapexSeed : rows[i - 2].netCapex
+    const shareGain      = shareGainSchedule[i - 1] ?? 0
+
+    // Three drivers: market floor + AI competitive advantage + lagged capex ROIC
+    const revGrowth = adMarketGrowth + shareGain + roic * Math.max(0, netCapexLagged) / prevRev
     const rev       = prevRev * (1 + revGrowth)
 
-    // Capex = % of this year's revenue (capexPct has 9 values, index 0 = FY2027)
     const capex   = rev * capexPct[i - 1]
     const prevPPE = ppe
     const da      = prevPPE * daRate + capex * daRate * 0.5
@@ -113,8 +130,11 @@ export function runMetaDCF(
     const nopat = rev * foaOpMargin[i] * (1 - taxRate)
     const fcf   = nopat + da - capex
 
+    const yearNum = 2026 + i
+    const adTAM   = adTam2025 * Math.pow(1 + adMarketGrowth, yearNum - 2025)
+
     rows.push({
-      year:        2026 + i,
+      year:        yearNum,
       rev,
       revGrowth,
       foaOpMargin: foaOpMargin[i],
@@ -127,11 +147,11 @@ export function runMetaDCF(
       pvFcf:   fcf / Math.pow(1 + wacc, i + 1),
       shares,
       ppe,
+      adTAM,
+      mktShare: rev / adTAM,
     })
 
-    prevRev      = rev
-    prevNopat    = nopat
-    prevNetCapex = netCapex
+    prevRev = rev
   }
 
   // ── Terminal value (Gordon Growth) ───────────────────────────
@@ -144,7 +164,6 @@ export function runMetaDCF(
   const equity   = ev + netCash
   const perShare = equity / rows[9].shares
 
-  // Fair value accreted at WACC for 10 years → implied CAGR vs current price
   const fvYear10    = perShare * Math.pow(1 + wacc, 10)
   const impliedCAGR = Math.pow(fvYear10 / currentPrice, 0.1) - 1
 
@@ -158,24 +177,25 @@ export function runMetaDCF(
 }
 
 // ─────────────────────────────────────────────────────────────────
-//  Sensitivity: ROIC (rows) × WACC (columns)
-//  Terminal growth is held at the model's slider value (passed in).
+//  Sensitivity: Ad Market Growth (rows) × ROIC (columns)
+//  WACC and terminal growth held at slider values.
 // ─────────────────────────────────────────────────────────────────
 export interface MetaSensResult {
-  roics: number[]    // row labels
-  waccs: number[]    // column labels
-  grid:  number[][]  // [roic row][wacc col] → intrinsic value/share (rounded)
+  adMktGrowths: number[]   // row labels
+  roics:        number[]   // column labels
+  grid:         number[][] // [adMktGrowth row][roic col] → intrinsic value/share
 }
 
 export function buildMetaSensitivity(
   model:  MetaModelConfig,
   sc:     Scenario,
   termG:  number,
+  wacc:   number,
 ): MetaSensResult {
-  const roics = [0.12, 0.15, 0.20, 0.25, 0.28]
-  const waccs = [0.08, 0.09, 0.10, 0.11, 0.12]
-  const grid  = roics.map(r =>
-    waccs.map(w => Math.round(runMetaDCF(model, sc, w, termG, r).perShare))
+  const adMktGrowths = [0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
+  const roics        = [0.12, 0.15, 0.20, 0.25, 0.28]
+  const grid = adMktGrowths.map(g =>
+    roics.map(r => Math.round(runMetaDCF(model, sc, wacc, termG, r, g).perShare))
   )
-  return { roics, waccs, grid }
+  return { adMktGrowths, roics, grid }
 }

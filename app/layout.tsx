@@ -13,6 +13,7 @@ import { NIKE_MODELS } from "@/lib/nike-models"
 import { TSM_MODELS } from "@/lib/tsm-models"
 import { QXO_MODELS } from "@/lib/qxo-models"
 import { HD_MODELS } from "@/lib/hd-models"
+import { FICO_MODELS } from "@/lib/fico-models"
 import { runDCF } from "@/lib/dcf-engine"
 import { runMetaDCF } from "@/lib/meta-dcf-engine"
 import { runTeslaDCF } from "@/lib/tesla-engine"
@@ -23,6 +24,7 @@ import { runAtlassianDCF } from "@/lib/atlassian-engine"
 import { runNikeDCF } from "@/lib/nike-engine"
 import { runQxoDCF } from "@/lib/qxo-engine"
 import { runHDDCF } from "@/lib/hd-engine"
+import { runFicoSotp } from "@/lib/fico-engine"
 
 export const metadata: Metadata = {
   title: "Shadow Research",
@@ -68,6 +70,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ...TSM_MODELS.map(m => m.ticker),
     ...QXO_MODELS.map(m => m.ticker),
     ...HD_MODELS.map(m => m.ticker),
+    ...FICO_MODELS.map(m => m.ticker),
     'EURUSD=X',
   ]
   const uniqueTickers = [...new Set(allTickers)]
@@ -169,6 +172,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       cagr: r.impliedCAGR,
       extraInfo: `+ ${(divYield * 100).toFixed(1)}% Div`,
     })
+  }
+
+  for (const m of FICO_MODELS) {
+    const adj = prices.get(m.ticker) ? { ...m, currentPrice: prices.get(m.ticker)! } : m
+    const r = runFicoSotp(adj, adj.scenarios.base.scoresPriceGrowth, adj.scenarios.base.softwareGrowth, adj.scenarios.base.softwareMarginTarget, adj.waccDefault, adj.termGrowth)
+    items.push({ slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor, cagr: r.impliedCAGR })
   }
 
   items.sort((a, b) => b.cagr - a.cagr)

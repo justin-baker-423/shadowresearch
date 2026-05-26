@@ -32,6 +32,8 @@ const TICKER_DOMAINS: Record<string, string> = {
   SAP:  'sap.com',
   NKE:  'nike.com',
   QXO:  'qxo.com',
+  FICO: 'fico.com',
+  HD:   'homedepot.com',
 }
 
 const CACHE_SECONDS = 60 * 60 * 24   // 24 h
@@ -55,9 +57,10 @@ async function tryFetch(url: string): Promise<{ buf: ArrayBuffer; ct: string } |
 
 export async function GET(
   _req: Request,
-  { params }: { params: { ticker: string } },
+  { params }: { params: Promise<{ ticker: string }> },
 ) {
-  const ticker = params.ticker.toUpperCase()
+  const { ticker: rawTicker } = await params
+  const ticker = rawTicker.toUpperCase()
 
   // Static override: drop a file at public/logos/<TICKER>.{png,svg,jpg} to bypass all external sources
   for (const ext of ['png', 'svg', 'jpg', 'webp']) {

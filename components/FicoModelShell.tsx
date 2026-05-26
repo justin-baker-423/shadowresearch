@@ -218,12 +218,12 @@ export default function FicoModelShell({
         <div className="control-group">
           <div className="section-label">WACC: {fPct(wacc)}</div>
           <input
-            type="range" min={7} max={10} step={0.25} value={wacc * 100}
+            type="range" min={7} max={13} step={0.25} value={wacc * 100}
             onChange={e => setWacc(Number(e.target.value) / 100)}
             style={{ width: 140, accentColor: scColors.color }}
           />
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-3)", width: 140 }}>
-            <span>7%</span><span>10%</span>
+            <span>7%</span><span>13%</span>
           </div>
         </div>
 

@@ -303,7 +303,7 @@ export function buildFicoSensWaccTg(
   softwareMarginTarget: number,
 ): FicoSensGrid {
   const rowLabels = [0.020, 0.025, 0.030, 0.035, 0.040]
-  const colLabels = [0.070, 0.075, 0.080, 0.085, 0.090, 0.095, 0.100]
+  const colLabels = [0.085, 0.090, 0.095, 0.100, 0.105, 0.110, 0.115]
   const grid = rowLabels.map(tg =>
     colLabels.map(w =>
       Math.round(calcFicoSotp(model, scoresPriceGrowth, softwareGrowth, softwareMarginTarget, w, tg).perShare)

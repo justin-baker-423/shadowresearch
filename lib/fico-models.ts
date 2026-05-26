@@ -114,7 +114,7 @@ const FICO_MODEL: FicoModelConfig = {
   sbcGrowthRate:    0.03,
   taxRate:          0.23,
 
-  waccDefault:  0.08,
+  waccDefault:  0.10,
   termGrowth:   0.03,
   accentColor:  "#0052cc",  // FICO blue
 

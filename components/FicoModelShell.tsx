@@ -28,6 +28,7 @@ export default function FicoModelShell({
 }) {
   const [sc,                  setSc]                  = useState<FicoScenario>("base")
   const [scoresPriceGrowth,   setScoresPriceGrowth]   = useState(model.scenarios.base.scoresPriceGrowth)
+  const [scoresVolumeGrowth,  setScoresVolumeGrowth]  = useState(model.scoresVolumeGrowth)
   const [softwareGrowth,      setSoftwareGrowth]      = useState(model.scenarios.base.softwareGrowth)
   const [softwareMarginTarget, setSoftwareMarginTarget] = useState(model.scenarios.base.softwareMarginTarget)
   const [wacc,                setWacc]                = useState(model.waccDefault)
@@ -42,17 +43,17 @@ export default function FicoModelShell({
   }
 
   const M = useMemo(
-    () => runFicoSotp(model, scoresPriceGrowth, softwareGrowth, softwareMarginTarget, wacc, termG),
-    [model, scoresPriceGrowth, softwareGrowth, softwareMarginTarget, wacc, termG],
+    () => runFicoSotp(model, scoresPriceGrowth, scoresVolumeGrowth, softwareGrowth, softwareMarginTarget, wacc, termG),
+    [model, scoresPriceGrowth, scoresVolumeGrowth, softwareGrowth, softwareMarginTarget, wacc, termG],
   )
 
   const SENS_SS = useMemo(
-    () => buildFicoSensScoresSoftware(model, softwareMarginTarget, wacc, termG),
-    [model, softwareMarginTarget, wacc, termG],
+    () => buildFicoSensScoresSoftware(model, scoresVolumeGrowth, softwareMarginTarget, wacc, termG),
+    [model, scoresVolumeGrowth, softwareMarginTarget, wacc, termG],
   )
   const SENS_WT = useMemo(
-    () => buildFicoSensWaccTg(model, scoresPriceGrowth, softwareGrowth, softwareMarginTarget),
-    [model, scoresPriceGrowth, softwareGrowth, softwareMarginTarget],
+    () => buildFicoSensWaccTg(model, scoresPriceGrowth, scoresVolumeGrowth, softwareGrowth, softwareMarginTarget),
+    [model, scoresPriceGrowth, scoresVolumeGrowth, softwareGrowth, softwareMarginTarget],
   )
 
   const accent   = model.accentColor
@@ -112,7 +113,7 @@ export default function FicoModelShell({
     {
       label: "Scores EV (standalone)",
       value: fB(M.scoresEv),
-      sub:   `${fPct(scoresPriceGrowth)} price CAGR · fixed-cost base expands at ${fPct(model.scoresFixedCostGrowth)}/yr`,
+      sub:   `${fPct(scoresPriceGrowth)} price · ${fPct(scoresVolumeGrowth)} volume · fixed-cost base +${fPct(model.scoresFixedCostGrowth)}/yr`,
       color: accent,
     },
     {
@@ -177,7 +178,7 @@ export default function FicoModelShell({
 
         {/* Scores Price Growth */}
         <div className="control-group">
-          <div className="section-label">Scores Growth: {fPct(scoresPriceGrowth)}</div>
+          <div className="section-label">Scores Price Growth: {fPct(scoresPriceGrowth)}</div>
           <input
             type="range" min={4} max={20} step={0.5} value={scoresPriceGrowth * 100}
             onChange={e => setScoresPriceGrowth(Number(e.target.value) / 100)}
@@ -185,6 +186,19 @@ export default function FicoModelShell({
           />
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-3)", width: 160 }}>
             <span>4%</span><span>20%</span>
+          </div>
+        </div>
+
+        {/* Scores Volume Growth */}
+        <div className="control-group">
+          <div className="section-label">Scores Volume Growth: {fPct(scoresVolumeGrowth)} <span style={{ color: "var(--text-3)", fontWeight: 400 }}>({f1(Math.pow(1 + scoresVolumeGrowth, 10) * 100 - 100)}% over 10yr)</span></div>
+          <input
+            type="range" min={0} max={8} step={0.25} value={scoresVolumeGrowth * 100}
+            onChange={e => setScoresVolumeGrowth(Number(e.target.value) / 100)}
+            style={{ width: 160, accentColor: accent }}
+          />
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-3)", width: 160 }}>
+            <span>0%</span><span>8%</span>
           </div>
         </div>
 
@@ -479,7 +493,7 @@ export default function FicoModelShell({
           <div className="sc-compare">
             {(["bear", "base", "bull"] as FicoScenario[]).map(s => {
               const sc2 = model.scenarios[s]
-              const m2  = runFicoSotp(model, sc2.scoresPriceGrowth, sc2.softwareGrowth, sc2.softwareMarginTarget, model.waccDefault, model.termGrowth)
+              const m2  = runFicoSotp(model, sc2.scoresPriceGrowth, model.scoresVolumeGrowth, sc2.softwareGrowth, sc2.softwareMarginTarget, model.waccDefault, model.termGrowth)
               const mt  = SC_COLORS[s]
               const uc2 = m2.updown > 0 ? "var(--green)" : "var(--red)"
               return (
@@ -512,7 +526,7 @@ export default function FicoModelShell({
       {tab === "model" && (
         <div>
           <div className="section-label">
-            FY2026–2035 Integrated P&L · Scores {fPct(scoresPriceGrowth)} · Software {fPct(softwareGrowth)} · Sw margin → {fPct(softwareMarginTarget)}
+            FY2026–2035 Integrated P&L · Scores price {fPct(scoresPriceGrowth)} + vol {fPct(scoresVolumeGrowth)} · Software {fPct(softwareGrowth)} · Sw margin → {fPct(softwareMarginTarget)}
           </div>
           <div style={{ overflowX: "auto" }}>
             <table className="data-table">
@@ -787,7 +801,7 @@ export default function FicoModelShell({
             Intrinsic Value / Share ($) — WACC × Terminal Growth
           </div>
           <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 14 }}>
-            Scores {fPct(scoresPriceGrowth)} · Software {fPct(softwareGrowth)} · Sw margin target {fPct(softwareMarginTarget)}
+            Scores price {fPct(scoresPriceGrowth)} + vol {fPct(scoresVolumeGrowth)} · Software {fPct(softwareGrowth)} · Sw margin target {fPct(softwareMarginTarget)}
           </div>
           <div style={{ overflowX: "auto" }}>
             <table className="sens-table">
@@ -850,7 +864,7 @@ export default function FicoModelShell({
                 ["Pricing power",              "~15–20%+ annual price CAGR for a decade · revenue grew despite flat/down origination volumes"],
                 ["Fixed cost base",            `~$100M fixed: algorithm R&D + legal + small headcount · grows at just ${fPct(model.scoresFixedCostGrowth)}/yr`],
                 ["Why margin expands",         "Every incremental revenue dollar has near-zero marginal cost → margin rises each year automatically"],
-                ["FY2025 Scores op margin",    `${fPct((model.scoresBaseRev - model.scoresFixedCosts) / model.scoresBaseRev)} → expands to ${fPct(M.rows[9].scoresOpMargin)} by FY2035E at ${fPct(scoresPriceGrowth)} growth`],
+                ["FY2025 Scores op margin",    `${fPct((model.scoresBaseRev - model.scoresFixedCosts) / model.scoresBaseRev)} → expands to ${fPct(M.rows[9].scoresOpMargin)} by FY2035E at ${fPct(scoresPriceGrowth)} price + ${fPct(scoresVolumeGrowth)} volume`],
                 ["FHFA / GSE mandate",         "Fannie + Freddie require FICO on conforming mortgages — regulatory bedrock, can't be removed"],
                 ["VantageScore (bi-score)",    "FHFA requires BOTH FICO and VantageScore — ADDS VantageScore, does NOT replace FICO"],
                 ["FICO 10T",                   "Next-gen model · pent-up demand unmonetized until FHFA finalizes data publication protocols"],

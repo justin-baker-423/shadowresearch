@@ -56,6 +56,7 @@ export interface FicoModelConfig {
   scoresBaseRev:        number   // $B FY2025A estimate
   scoresFixedCosts:     number   // $B starting — grows at scoresFixedCostGrowth
   scoresFixedCostGrowth: number  // 2%/yr — algorithm R&D, small headcount, legal
+  scoresVolumeGrowth:   number   // annual volume CAGR — separate from pricing; default ~4.14%/yr = 50% aggregate over 10 yrs
 
   // ── Software segment ───────────────────────────────────────
   softwareBaseRev:      number   // $B FY2025A estimate
@@ -99,6 +100,7 @@ const FICO_MODEL: FicoModelConfig = {
   scoresBaseRev:         1.080,
   scoresFixedCosts:      0.100,    // $100M: algorithm R&D + small headcount + legal
   scoresFixedCostGrowth: 0.02,     // fixed costs grow at 2%/yr
+  scoresVolumeGrowth:    0.04138,  // ~4.14%/yr = 50% aggregate volume growth over 10 yrs (mortgage recovery + auto/card drift)
 
   // Software — FY2025A: ~$0.78B revenue, ~27% segment operating margin
   softwareBaseRev:      0.780,

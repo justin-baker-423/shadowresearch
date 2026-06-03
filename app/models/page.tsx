@@ -209,6 +209,7 @@ export default async function Home() {
       const result = runFicoSotp(
         adj,
         adj.scenarios.base.scoresPriceGrowth,
+        adj.scoresVolumeGrowth,
         adj.scenarios.base.softwareGrowth,
         adj.scenarios.base.softwareMarginTarget,
         adj.waccDefault,

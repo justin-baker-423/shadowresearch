@@ -2,7 +2,7 @@
 //  fico-engine.ts  —  Two-segment SOTP DCF engine for Fair Isaac
 //
 //  Per-year integrated FCF:
-//    ScoresRev(t)      = scoresBaseRev × (1+scoresPriceGrowth)^t
+//    ScoresRev(t)      = scoresBaseRev × (1+scoresPriceGrowth)^t × (1+scoresVolumeGrowth)^t
 //    ScoresFixedCosts(t) = scoresFixedCosts × (1+scoresFixedCostGrowth)^t
 //    ScoresOpIncome(t) = ScoresRev(t) − ScoresFixedCosts(t)
 //
@@ -106,6 +106,7 @@ export interface FicoSotpResult {
 function calcFicoSotp(
   model:                  FicoModelConfig,
   scoresPriceGrowth:      number,
+  scoresVolumeGrowth:     number,
   softwareGrowth:         number,
   softwareMarginTarget:   number,
   wacc:                   number,
@@ -139,7 +140,7 @@ function calcFicoSotp(
     const df   = Math.pow(1 + wacc, t)
 
     // ── Scores ──────────────────────────────────────────────────
-    const scoresRev            = scoresBaseRev * Math.pow(1 + scoresPriceGrowth, t)
+    const scoresRev            = scoresBaseRev * Math.pow(1 + scoresPriceGrowth, t) * Math.pow(1 + scoresVolumeGrowth, t)
     const scoresFixedCostsYear = scoresFixedCosts * Math.pow(1 + scoresFixedCostGrowth, t)
     const scoresOpIncome       = scoresRev - scoresFixedCostsYear
     const scoresOpMargin       = scoresOpIncome / scoresRev
@@ -216,6 +217,7 @@ function calcFicoSotp(
 // ── Reverse DCF: Scores price CAGR implied by current market price ─
 function solveImpliedScoresGrowth(
   model:                FicoModelConfig,
+  scoresVolumeGrowth:   number,
   softwareGrowth:       number,
   softwareMarginTarget: number,
   wacc:                 number,
@@ -224,7 +226,7 @@ function solveImpliedScoresGrowth(
   let lo = -0.05, hi = 0.50
   for (let iter = 0; iter < 60; iter++) {
     const mid = (lo + hi) / 2
-    const ps  = calcFicoSotp(model, mid, softwareGrowth, softwareMarginTarget, wacc, termG).perShare
+    const ps  = calcFicoSotp(model, mid, scoresVolumeGrowth, softwareGrowth, softwareMarginTarget, wacc, termG).perShare
     if (ps < model.currentPrice) lo = mid
     else                          hi = mid
     if (hi - lo < 0.00005) break
@@ -236,12 +238,13 @@ function solveImpliedScoresGrowth(
 export function runFicoSotp(
   model:                FicoModelConfig,
   scoresPriceGrowth:    number,
+  scoresVolumeGrowth:   number,
   softwareGrowth:       number,
   softwareMarginTarget: number,
   wacc:                 number,
   termG:                number,
 ): FicoSotpResult {
-  const inner = calcFicoSotp(model, scoresPriceGrowth, softwareGrowth, softwareMarginTarget, wacc, termG)
+  const inner = calcFicoSotp(model, scoresPriceGrowth, scoresVolumeGrowth, softwareGrowth, softwareMarginTarget, wacc, termG)
   const {
     rows, scoresEv, softwareEv,
     scoresSumPvPostTax, scoresPvTv,
@@ -255,7 +258,7 @@ export function runFicoSotp(
     : 0
 
   const impliedScoresGrowth = solveImpliedScoresGrowth(
-    model, softwareGrowth, softwareMarginTarget, wacc, termG,
+    model, scoresVolumeGrowth, softwareGrowth, softwareMarginTarget, wacc, termG,
   )
 
   return {
@@ -281,6 +284,7 @@ export interface FicoSensGrid {
 
 export function buildFicoSensScoresSoftware(
   model:                FicoModelConfig,
+  scoresVolumeGrowth:   number,
   softwareMarginTarget: number,
   wacc:                 number,
   termG:                number,
@@ -289,7 +293,7 @@ export function buildFicoSensScoresSoftware(
   const colLabels = [0.05, 0.07, 0.10, 0.12, 0.14, 0.16, 0.18]  // Software ARR growth
   const grid = rowLabels.map(sg =>
     colLabels.map(sw =>
-      Math.round(calcFicoSotp(model, sg, sw, softwareMarginTarget, wacc, termG).perShare)
+      Math.round(calcFicoSotp(model, sg, scoresVolumeGrowth, sw, softwareMarginTarget, wacc, termG).perShare)
     )
   )
   return { rowLabels, colLabels, grid }
@@ -299,6 +303,7 @@ export function buildFicoSensScoresSoftware(
 export function buildFicoSensWaccTg(
   model:                FicoModelConfig,
   scoresPriceGrowth:    number,
+  scoresVolumeGrowth:   number,
   softwareGrowth:       number,
   softwareMarginTarget: number,
 ): FicoSensGrid {
@@ -306,7 +311,7 @@ export function buildFicoSensWaccTg(
   const colLabels = [0.085, 0.090, 0.095, 0.100, 0.105, 0.110, 0.115]
   const grid = rowLabels.map(tg =>
     colLabels.map(w =>
-      Math.round(calcFicoSotp(model, scoresPriceGrowth, softwareGrowth, softwareMarginTarget, w, tg).perShare)
+      Math.round(calcFicoSotp(model, scoresPriceGrowth, scoresVolumeGrowth, softwareGrowth, softwareMarginTarget, w, tg).perShare)
     )
   )
   return { rowLabels, colLabels, grid }

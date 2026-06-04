@@ -20,7 +20,8 @@
 //
 //  Net buybacks (SBC add-back in FCF does not represent real cash):
 //    BuybackCapacity   = FCF − SBC(t)
-//    NetSharesRetired  = BuybackCapacity / buybackPrice
+//    BuybackPrice(t)   = 40 × EPS(t)  [EPS = NetIncome / beginning-of-year shares]
+//    NetSharesRetired  = BuybackCapacity / BuybackPrice(t)
 //
 //  SOTP standalone segment EVs:
 //    Scores EV   = Σ PV(ScoresOpIncome × (1−tax)) + PV(TV_scores)
@@ -169,8 +170,10 @@ function calcFicoSotp(
     const pvFcf        = totalFcf / df
 
     // ── Net buybacks (FCF net of SBC so new shares cancel add-back)
+    // Buyback price = 40× EPS using beginning-of-year shares (avoids circularity)
     const buybackCapacity  = totalFcf - sbcYear
-    const buybackPrice     = currentPrice * Math.pow(1 + termG, t)
+    const eps              = netIncome / shares   // shares = beginning-of-year count
+    const buybackPrice     = 40 * eps
     const netSharesRetired = Math.max(buybackCapacity / buybackPrice, 0)
     cumulRetired          += netSharesRetired
     shares                 = Math.max(shares - netSharesRetired, 0.0001)

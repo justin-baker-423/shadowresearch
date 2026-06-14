@@ -14,6 +14,7 @@ import { TSM_MODELS } from "@/lib/tsm-models"
 import { QXO_MODELS } from "@/lib/qxo-models"
 import { HD_MODELS } from "@/lib/hd-models"
 import { FICO_MODELS } from "@/lib/fico-models"
+import { LVMH_MODELS } from "@/lib/lvmh-models"
 import { runDCF } from "@/lib/dcf-engine"
 import { runMetaDCF } from "@/lib/meta-dcf-engine"
 import { runTeslaDCF } from "@/lib/tesla-engine"
@@ -25,6 +26,7 @@ import { runNikeDCF } from "@/lib/nike-engine"
 import { runQxoDCF } from "@/lib/qxo-engine"
 import { runHDDCF } from "@/lib/hd-engine"
 import { runFicoSotp } from "@/lib/fico-engine"
+import { runLvmhDCF } from "@/lib/lvmh-engine"
 
 export const metadata: Metadata = {
   title: "Shadow Research",
@@ -71,6 +73,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ...QXO_MODELS.map(m => m.ticker),
     ...HD_MODELS.map(m => m.ticker),
     ...FICO_MODELS.map(m => m.ticker),
+    ...LVMH_MODELS.map(m => m.ticker),
     'EURUSD=X',
   ]
   const uniqueTickers = [...new Set(allTickers)]
@@ -178,6 +181,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     const adj = prices.get(m.ticker) ? { ...m, currentPrice: prices.get(m.ticker)! } : m
     const r = runFicoSotp(adj, adj.scenarios.base.scoresPriceGrowth, adj.scoresVolumeGrowth, adj.scenarios.base.softwareGrowth, adj.scenarios.base.softwareMarginTarget, adj.waccDefault, adj.termGrowth)
     items.push({ slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor, cagr: r.impliedCAGR })
+  }
+
+  for (const m of LVMH_MODELS) {
+    const adj = prices.get(m.ticker) ? { ...m, currentPrice: prices.get(m.ticker)! } : m
+    const r = runLvmhDCF(adj, "base", adj.waccDefault, adj.termGrowth, fx)
+    items.push({
+      slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor,
+      cagr: r.impliedCAGR,
+      extraInfo: `+ ${(r.divYieldAdr * 100).toFixed(1)}% Div`,
+    })
   }
 
   items.sort((a, b) => b.cagr - a.cagr)

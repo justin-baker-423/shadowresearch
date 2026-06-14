@@ -17,6 +17,8 @@ import { QXO_MODELS } from "@/lib/qxo-models"
 import { runQxoDCF } from "@/lib/qxo-engine"
 import { FICO_MODELS } from "@/lib/fico-models"
 import { runFicoSotp } from "@/lib/fico-engine"
+import { LVMH_MODELS } from "@/lib/lvmh-models"
+import { runLvmhDCF } from "@/lib/lvmh-engine"
 
 export const revalidate = 300 // refresh every 5 minutes
 
@@ -221,6 +223,23 @@ export default async function Home() {
         exchange: m.exchange ?? "", currency: "$",
         cagr: result.impliedCAGR, updown: result.updown,
         intrinsicPerShare: result.perShare, labelIV: "Base IV",
+      })
+    })
+  )
+
+  // ── LVMH book-anchored DCF (ADR) ──────────────────────────────
+  await Promise.all(
+    LVMH_MODELS.map(async m => {
+      const livePrice = await yahooPrice(m.ticker)
+      const adj = livePrice ? { ...m, currentPrice: livePrice } : m
+      const result = runLvmhDCF(adj, "base", adj.waccDefault, adj.termGrowth, fx)
+      cards.push({
+        slug: m.slug, ticker: m.ticker, name: m.name, description: m.description,
+        lastUpdated: m.lastUpdated, accentColor: m.accentColor,
+        exchange: m.exchange ?? "", currency: "$",
+        cagr: result.impliedCAGR, updown: result.updown,
+        intrinsicPerShare: result.perShare, labelIV: "Base IV",
+        extraLine: `+ ${(result.divYieldAdr * 100).toFixed(1)}% dividend`,
       })
     })
   )

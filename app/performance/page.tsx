@@ -142,7 +142,16 @@ export default async function PerformancePage() {
           <div className="port-card" style={{ height: '100%' }}>
             <div className="port-card-title">Portfolio Breakdown</div>
             {data ? (
-              <PortfolioBreakdown details={data.holdingDetails} />
+              <PortfolioBreakdown
+                details={data.holdingDetails}
+                cagrByTicker={
+                  fwdReturn
+                    ? Object.fromEntries(fwdReturn.contributions.map(c => [c.ticker, c.cagr]))
+                    : {}
+                }
+                avgCagr={fwdReturn?.total ?? 0}
+                startYear={2026}
+              />
             ) : (
               <div style={{ color: 'var(--text-3)', fontSize: 12 }}>
                 Unable to load data

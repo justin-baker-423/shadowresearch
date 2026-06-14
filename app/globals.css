@@ -491,6 +491,12 @@ input[type=range]::-webkit-slider-thumb { width: 14px; height: 14px; border-radi
 }
 
 /* Portfolio Breakdown */
+.port-breakdown-proj {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+}
 .port-breakdown-wrap {
   position: relative;
   flex: 1;
@@ -499,6 +505,68 @@ input[type=range]::-webkit-slider-thumb { width: 14px; height: 14px; border-radi
   align-items: center;
   justify-content: center;
 }
+
+/* Projected-growth readout */
+.port-proj-readout {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.port-proj-stat { display: flex; flex-direction: column; gap: 2px; }
+.port-proj-label {
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.port-proj-year {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+.port-proj-growth {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Year projection slider */
+.port-year-control { margin-top: 4px; padding: 0 4px; }
+.port-year-slider {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.port-year-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79,142,247,.25);
+}
+.port-year-slider::-moz-range-thumb {
+  background: var(--accent);
+  border: none;
+}
+.port-year-ticks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+.port-year-tick {
+  background: none;
+  border: none;
+  padding: 2px 3px;
+  font-family: var(--font);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: color 0.12s;
+}
+.port-year-tick:hover  { color: var(--text-2); }
+.port-year-tick.active { color: var(--accent); font-weight: 700; }
 
 /* Holdings Table */
 .port-table-card {

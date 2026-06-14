@@ -14,8 +14,8 @@ const COLORS = [
   '#4f8ef7','#3ecf8e','#a78bfa','#f5a623','#f25c5c',
   '#22d3ee','#fb923c','#84cc16','#e879f9','#38bdf8',
   '#facc15','#4ade80','#c084fc','#f87171','#60a5fa',
-  '#94a3b8',  // slate — for "Other"
 ]
+const OTHER_COLOR = '#94a3b8'   // slate — for "Other"
 
 // ── Preload logos ─────────────────────────────────────────────────────────────
 
@@ -86,14 +86,14 @@ function spreadLabels(group: LabelInfo[]) {
 }
 
 function makeOuterLabelsPlugin(
-  slices:    { ticker: string; weightPct: number; color: string }[],
+  slicesRef: React.MutableRefObject<{ ticker: string; weightPct: number; color: string }[]>,
   logosRef:  React.MutableRefObject<Map<string, HTMLImageElement>>,
-  fallbackBg: string[],
 ) {
   return {
     id: 'outerLabels',
     afterDatasetsDraw(chart: ChartJS) {
-      const logos = logosRef.current
+      const slices = slicesRef.current
+      const logos  = logosRef.current
       const { ctx } = chart
       const meta    = chart.getDatasetMeta(0)
       if (!meta.data.length) return
@@ -159,7 +159,7 @@ function makeOuterLabelsPlugin(
         if (img?.complete && img.naturalHeight > 0) {
           try { ctx.drawImage(img, logoX - LOGO_R, logoY - LOGO_R, LOGO_R * 2, LOGO_R * 2) } catch {}
         } else {
-          ctx.fillStyle = fallbackBg[i % fallbackBg.length]
+          ctx.fillStyle = slice.color
           ctx.fill()
           ctx.fillStyle    = '#fff'
           ctx.font         = `bold 8px Inter, sans-serif`
@@ -186,51 +186,106 @@ function makeOuterLabelsPlugin(
   }
 }
 
+// ── Projection helpers ─────────────────────────────────────────────────────────
+
+type Slice = { ticker: string; weightPct: number; color: string }
+
+const MIN_LABEL_PCT = 1   // Slices below this are grouped as "Other"
+const MAX_YEARS     = 10
+
+/** Build pie slices (with "Other" grouping) from projected values, ordered largest→smallest. */
+function buildSlices(
+  values:        { ticker: string; value: number }[],
+  colorByTicker: Map<string, string>,
+): Slice[] {
+  const total = values.reduce((s, v) => s + v.value, 0)
+  if (total <= 0) return []
+
+  // Re-sort by *this year's* weight so the pie always reads in descending order.
+  const withPct = values
+    .map(v => ({ ticker: v.ticker, weightPct: (v.value / total) * 100 }))
+    .sort((a, b) => b.weightPct - a.weightPct)
+
+  const labelled = withPct.filter(w => w.weightPct >= MIN_LABEL_PCT)
+  const otherPct = withPct
+    .filter(w => w.weightPct < MIN_LABEL_PCT)
+    .reduce((s, w) => s + w.weightPct, 0)
+
+  return [
+    ...labelled.map(w => ({
+      ticker:    w.ticker,
+      weightPct: w.weightPct,
+      color:     colorByTicker.get(w.ticker) ?? OTHER_COLOR,
+    })),
+    ...(otherPct > 0
+      ? [{ ticker: 'Other', weightPct: Math.round(otherPct * 10) / 10, color: OTHER_COLOR }]
+      : []),
+  ]
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 interface Props {
-  details: HoldingDetail[]
+  details:       HoldingDetail[]
+  /** Implied 10-yr CAGR (decimal, e.g. 0.186) keyed by ticker. */
+  cagrByTicker?: Record<string, number>
+  /** MV-weighted average CAGR (decimal) — fallback for any holding lacking an estimate. */
+  avgCagr?:      number
+  /** Calendar year represented by the "today" position (slider year 0). */
+  startYear?:    number
 }
 
-const MIN_LABEL_PCT = 1   // Slices below this are grouped as "Other"
-
-export default function PortfolioBreakdown({ details }: Props) {
+export default function PortfolioBreakdown({
+  details,
+  cagrByTicker = {},
+  avgCagr      = 0,
+  startYear    = new Date().getFullYear(),
+}: Props) {
   const chartRef = useRef<ChartJS<'doughnut'>>(null)
+  const [year, setYear] = useState(0)   // 0 = today, up to MAX_YEARS out
 
-  // Split into labelled slices and "Other"
-  const labelled = details.filter(h => h.weightPct >= MIN_LABEL_PCT)
-  const otherPct = details.filter(h => h.weightPct < MIN_LABEL_PCT)
-    .reduce((s, h) => s + h.weightPct, 0)
+  // Stable per-ticker color, assigned by *today's* weight so each company keeps
+  // its color even though slice ordering re-sorts each year.
+  const colorByTicker = useMemo(() => {
+    const sorted = [...details].sort((a, b) => b.weightPct - a.weightPct)
+    const map = new Map<string, string>()
+    sorted.forEach((h, i) => map.set(h.ticker, COLORS[i % COLORS.length]))
+    return map
+  }, [details])
 
-  const slices = [
-    ...labelled.map((h, i) => ({
-      ticker:   h.ticker,
-      weightPct: h.weightPct,
-      color:    COLORS[i % COLORS.length],
-    })),
-    ...(otherPct > 0
-      ? [{ ticker: 'Other', weightPct: Math.round(otherPct * 10) / 10, color: COLORS[COLORS.length - 1] }]
-      : []),
-  ]
+  // Projected market value of each holding at the selected year, compounding
+  // at its implied CAGR (dividends reinvested ⇒ growth applies to full value).
+  const { slices, totalGrowth } = useMemo(() => {
+    const values = details.map(h => {
+      const cagr = cagrByTicker[h.ticker] ?? avgCagr
+      return { ticker: h.ticker, value: h.marketValue * Math.pow(1 + cagr, year) }
+    })
+    const valueNow    = details.reduce((s, h) => s + h.marketValue, 0)
+    const valueFuture = values.reduce((s, v) => s + v.value, 0)
+    return {
+      slices:      buildSlices(values, colorByTicker),
+      totalGrowth: valueNow > 0 ? valueFuture / valueNow - 1 : 0,
+    }
+  }, [details, cagrByTicker, avgCagr, year, colorByTicker])
 
-  const tickers  = labelled.map(h => h.ticker)
-  const logos    = usePreloadedLogos(tickers)
-
-  // Stable ref so the plugin closure always reads the latest logos map
-  // without needing to be recreated (Chart.js dedupes plugins by id)
+  // Preload logos for every holding (composition shifts with the slider)
+  const logos    = usePreloadedLogos(useMemo(() => details.map(h => h.ticker), [details]))
   const logosRef = useRef<Map<string, HTMLImageElement>>(new Map())
+
+  // Live refs so the (stable, id-deduped) plugin always draws the latest
+  // slices + logos. Chart.js keeps the first plugin registered under an id,
+  // so the plugin must read through refs rather than a captured closure.
+  const slicesRef = useRef(slices)
+  slicesRef.current = slices
 
   useEffect(() => {
     logosRef.current = logos
     chartRef.current?.update()
   }, [logos])
 
-  // Plugin is memoized by slice composition — logosRef is stable so the
-  // closure always picks up the current map via logosRef.current
-  const sliceKey = slices.map(s => s.ticker + s.weightPct).join()
-  const plugin   = useMemo(
-    () => makeOuterLabelsPlugin(slices, logosRef, COLORS),
-    [sliceKey], // eslint-disable-line react-hooks/exhaustive-deps
+  const plugin = useMemo(
+    () => makeOuterLabelsPlugin(slicesRef, logosRef),
+    [],
   )
 
   const chartData = {
@@ -247,7 +302,7 @@ export default function PortfolioBreakdown({ details }: Props) {
 
   const options: Parameters<typeof Doughnut>[0]['options'] = {
     cutout:    '60%',
-    animation: { duration: 600 },
+    animation: { duration: 450 },
     plugins: {
       legend:  { display: false },
       tooltip: {
@@ -266,14 +321,64 @@ export default function PortfolioBreakdown({ details }: Props) {
     layout: { padding: { top: 55, bottom: 55, left: 115, right: 115 } },
   }
 
+  const targetYear = startYear + year
+  const growthPct  = totalGrowth * 100
+  const isToday    = year === 0
+
   return (
-    <div className="port-breakdown-wrap">
-      <Doughnut
-        ref={chartRef}
-        data={chartData}
-        options={options}
-        plugins={[plugin as any]}
-      />
+    <div className="port-breakdown-proj">
+      {/* ── Projected-growth readout ── */}
+      <div className="port-proj-readout">
+        <div className="port-proj-stat">
+          <span className="port-proj-label">{isToday ? 'Today' : 'Projected'}</span>
+          <span className="port-proj-year">{targetYear}</span>
+        </div>
+        <div className="port-proj-stat" style={{ textAlign: 'right' }}>
+          <span className="port-proj-label">Portfolio value vs today</span>
+          <span
+            className="port-proj-growth"
+            style={{ color: isToday ? 'var(--text-2)' : growthPct >= 0 ? 'var(--green)' : 'var(--red)' }}
+          >
+            {isToday ? '—' : `${growthPct >= 0 ? '+' : ''}${growthPct.toFixed(0)}%`}
+          </span>
+        </div>
+      </div>
+
+      {/* ── Pie ── */}
+      <div className="port-breakdown-wrap">
+        <Doughnut
+          ref={chartRef}
+          data={chartData}
+          options={options}
+          plugins={[plugin as any]}
+        />
+      </div>
+
+      {/* ── Year slider ── */}
+      <div className="port-year-control">
+        <input
+          type="range"
+          className="port-year-slider"
+          min={0}
+          max={MAX_YEARS}
+          step={1}
+          value={year}
+          onChange={e => setYear(Number(e.target.value))}
+          aria-label="Projection year"
+        />
+        <div className="port-year-ticks">
+          {Array.from({ length: MAX_YEARS + 1 }, (_, i) => (
+            <button
+              key={i}
+              type="button"
+              className={`port-year-tick${i === year ? ' active' : ''}`}
+              onClick={() => setYear(i)}
+            >
+              {`'${String((startYear + i) % 100).padStart(2, '0')}`}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

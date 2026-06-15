@@ -492,3 +492,8 @@ CUSIP: 52567D107",BUY,EQUITY,2.0,55.46,-110.92,0.0,CSV-Robinhood,
 2026-03-27,2026-03-30,Robinhood,CVX,"Chevron
 CUSIP: 166764100",SELL,EQUITY,20.0,211.85,4237.0,0.0,CSV-Robinhood,
 2026-03-27,2026-03-30,Robinhood,META,META PLATFORMS INC CLASS A,BUY,EQUITY,8.0,527.43,-4219.44,0.0,CSV-Robinhood,
+2026-04-09,2026-04-09,Schwab IRA,TSM,TAIWAN SEMICONDUCTOR M FSPONSORED ADR 1 ADR REPS 5 ORD SHS,DIVIDEND,EQUITY,0.0,0.0,61.03,0.0,manual-entry,Gross ADR dividend; user-provided
+2026-04-09,2026-04-09,Schwab IRA,TSM,TAIWAN SEMICONDUCTOR M FSPONSORED ADR 1 ADR REPS 5 ORD SHS,FEE,EQUITY,0.0,0.0,-12.82,0.0,manual-entry,Foreign tax withheld on TSM dividend; user-provided
+2026-05-08,2026-05-08,Schwab IRA,DE,DEERE & CO,DIVIDEND,EQUITY,0.0,0.0,16.41,0.0,manual-entry,Cash dividend reinvested same day; user-provided
+2026-05-08,2026-05-08,Schwab IRA,DE,DEERE & CO,REINVEST,EQUITY,0.0283,579.8587,-16.41,0.0,manual-entry,Dividend reinvested into 0.0283 sh DE; user-provided
+2026-06-08,2026-06-08,Robinhood,,External cash deposit,DEPOSIT,CASH,0,0,9126.0,0.0,manual-entry,Cash contribution; user-provided (existing ~$147 already in ledger)

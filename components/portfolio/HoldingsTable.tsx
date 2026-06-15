@@ -17,8 +17,8 @@ function TickerLogo({ ticker, idx }: { ticker: string; idx: number }) {
 
   if (!url || failed) {
     return (
-      <span className="port-ticker-logo-fallback" style={{ background: bg }}>
-        {ticker.slice(0, 2)}
+      <span className="port-ticker-logo-fallback" style={{ background: ticker === 'CASH' ? '#64748b' : bg }}>
+        {ticker === 'CASH' ? '$' : ticker.slice(0, 2)}
       </span>
     )
   }

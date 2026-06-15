@@ -162,10 +162,10 @@ function makeOuterLabelsPlugin(
           ctx.fillStyle = slice.color
           ctx.fill()
           ctx.fillStyle    = '#fff'
-          ctx.font         = `bold 8px Inter, sans-serif`
+          ctx.font         = `bold ${slice.ticker === 'CASH' ? 11 : 8}px Inter, sans-serif`
           ctx.textAlign    = 'center'
           ctx.textBaseline = 'middle'
-          ctx.fillText(slice.ticker.slice(0, 2), logoX, logoY)
+          ctx.fillText(slice.ticker === 'CASH' ? '$' : slice.ticker.slice(0, 2), logoX, logoY)
         }
         ctx.restore()
 
@@ -250,6 +250,7 @@ export default function PortfolioBreakdown({
     const sorted = [...details].sort((a, b) => b.weightPct - a.weightPct)
     const map = new Map<string, string>()
     sorted.forEach((h, i) => map.set(h.ticker, COLORS[i % COLORS.length]))
+    map.set('CASH', '#64748b')   // neutral slate so cash reads as cash
     return map
   }, [details])
 
@@ -257,7 +258,8 @@ export default function PortfolioBreakdown({
   // at its implied CAGR (dividends reinvested ⇒ growth applies to full value).
   const { slices, totalGrowth } = useMemo(() => {
     const values = details.map(h => {
-      const cagr = cagrByTicker[h.ticker] ?? avgCagr
+      // Cash doesn't compound — hold it flat across the projection.
+      const cagr = h.ticker === 'CASH' ? 0 : (cagrByTicker[h.ticker] ?? avgCagr)
       return { ticker: h.ticker, value: h.marketValue * Math.pow(1 + cagr, year) }
     })
     const valueNow    = details.reduce((s, h) => s + h.marketValue, 0)

@@ -87,6 +87,36 @@ export async function computePortfolio(): Promise<PortfolioData> {
     })
   }
 
+  // ── Cash positions: residual of every cash flow per account ───────────────
+  // The fact-table `amount` field encodes the signed cash delta of each row
+  // (deposits +, buys/reinvests/fees −, sells/dividends/interest +). Summing
+  // it per account yields the leftover cash balance. The PDF-reconstructed
+  // early history can net slightly negative for an account, so we only surface
+  // cash where the balance is positive (treats artifacts as $0 rather than a
+  // bogus negative slice).
+  const cashByAccount = new Map<string, number>()
+  for (const tx of transactions) {
+    cashByAccount.set(tx.account, (cashByAccount.get(tx.account) ?? 0) + tx.amount)
+  }
+  for (const [account, balance] of cashByAccount) {
+    if (balance < 1) continue
+    unsorted.push({
+      ticker:          'CASH',
+      account:         toShort(account),
+      shares:          round2(balance),
+      avgCostDate:     now.toISOString().slice(0, 10),
+      holdingPeriod:   '—',
+      avgCostPerShare: 1,
+      currentPrice:    1,
+      marketValue:     Math.round(balance),
+      costBasis:       Math.round(balance),
+      gainLoss:        0,
+      returnPct:       0,
+      cagrPct:         0,
+      shortHold:       false,
+    })
+  }
+
   unsorted.sort((a, b) => b.marketValue - a.marketValue)
   const totalMV = unsorted.reduce((s, h) => s + h.marketValue, 0)
 
@@ -127,6 +157,31 @@ export async function computePortfolio(): Promise<PortfolioData> {
   const holdingDetails: HoldingDetail[] = []
 
   for (const [ticker, rows] of byTicker) {
+    // Cash has no FIFO lots — build its detail directly and skip the lot math.
+    if (ticker === 'CASH') {
+      const mv = rows.reduce((s, h) => s + h.marketValue, 0)
+      holdingDetails.push({
+        ticker:             'CASH',
+        companyName:        'Cash & equivalents',
+        accounts:           [...new Set(rows.map(h => h.account))],
+        shares:             round2(mv),
+        marketValue:        Math.round(mv),
+        costBasis:          Math.round(mv),
+        currentPrice:       1,
+        avgCostPerShare:    1,
+        weightPct:          totalMV > 0 ? round1((mv / totalMV) * 100) : 0,
+        returnPct:          0,
+        cagrPct:            0,
+        holdingPeriod:      '—',
+        totalHoldingStart:  now.toISOString().slice(0, 10),
+        totalHoldingPeriod: '—',
+        change3moShares:    null,
+        change3moPct:       null,
+        isNewPosition3mo:   false,
+      })
+      continue
+    }
+
     const mergedShares  = rows.reduce((s, h) => s + h.shares,      0)
     const mergedMV      = rows.reduce((s, h) => s + h.marketValue, 0)
     const mergedCB      = rows.reduce((s, h) => s + h.costBasis,   0)

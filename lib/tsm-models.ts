@@ -23,7 +23,7 @@ export const TSM_MODELS: ModelConfig[] = [
     name:         "Taiwan Semiconductor Mfg.",
     sector:       "Semiconductor Foundry",
     description:  "Pure-play foundry dominance · AI/HPC advanced-node supercycle · 2nm ramp",
-    lastUpdated:  "May 2026",
+    lastUpdated:  "June 2026",
 
     baseYear:     2025,
     baseRevenue:  121.35,   // FY2025A ($B USD)
@@ -41,28 +41,32 @@ export const TSM_MODELS: ModelConfig[] = [
     accentColor:  "#e31837",  // TSMC red
 
     scenarios: {
+      // Supercycle extends through 2028 (margins expand 2026→2028);
+      // single-year cyclical correction in 2029, then 17%/yr recovery.
+
       // ── Bear ───────────────────────────────────────────────────────
-      // Slower peak growth, deeper cycle trough; NI margins trough low-40s
-      // Implied GM: peak ~64%, trough ~52%, recovery ~58%
+      // Slower peak growth, deep 2029 trough; margins trough high-30s
+      // Implied GM: peak ~64%, trough ~53%, recovery ~58%
       bear: {
-        revGrowth: [ 0.28,  0.20, -0.05, -0.04,  0.17,  0.17,  0.17,  0.17,  0.17,  0.17],
-        niMargin:  [ 0.48,  0.44,  0.37,  0.36,  0.39,  0.41,  0.43,  0.44,  0.45,  0.45],
+        revGrowth: [ 0.28,  0.20,  0.15, -0.04,  0.17,  0.17,  0.17,  0.17,  0.17,  0.17],
+        niMargin:  [ 0.48,  0.46,  0.47,  0.38,  0.40,  0.41,  0.43,  0.44,  0.45,  0.45],
       },
 
       // ── Base ───────────────────────────────────────────────────────
-      // 30%/27% peak, two down years (−3%/−2%), 17% steady recovery
-      // Implied GM: peak ~66%, trough ~54%, recovery to mid-60s
+      // 30%/27%/25% supercycle, margins expand 50% → 51% → 52%,
+      // single down year 2029 (−2%), 17% steady recovery
+      // Implied GM: peak ~68%, trough ~56%, recovery to mid-60s
       base: {
-        revGrowth: [ 0.30,  0.27, -0.03, -0.02,  0.17,  0.17,  0.17,  0.17,  0.17,  0.17],
-        niMargin:  [ 0.50,  0.47,  0.41,  0.40,  0.43,  0.45,  0.47,  0.49,  0.50,  0.50],
+        revGrowth: [ 0.30,  0.27,  0.25, -0.02,  0.17,  0.17,  0.17,  0.17,  0.17,  0.17],
+        niMargin:  [ 0.50,  0.51,  0.52,  0.43,  0.45,  0.47,  0.49,  0.50,  0.50,  0.50],
       },
 
       // ── Bull ───────────────────────────────────────────────────────
-      // 33%/30% peak, shallower correction (−1%/+2%), 17% steady state
-      // Implied GM: peak ~68%, trough ~57%, recovery to high-60s
+      // 33%/30%/27% supercycle, shallow correction (−1% in 2029), 17% steady state
+      // Implied GM: peak ~70%, trough ~59%, recovery to high-60s
       bull: {
-        revGrowth: [ 0.33,  0.30, -0.01,  0.02,  0.17,  0.17,  0.17,  0.17,  0.17,  0.17],
-        niMargin:  [ 0.52,  0.50,  0.44,  0.43,  0.46,  0.48,  0.49,  0.50,  0.51,  0.52],
+        revGrowth: [ 0.33,  0.30,  0.27, -0.01,  0.17,  0.17,  0.17,  0.17,  0.17,  0.17],
+        niMargin:  [ 0.52,  0.53,  0.54,  0.46,  0.47,  0.49,  0.51,  0.52,  0.52,  0.52],
       },
     },
   },

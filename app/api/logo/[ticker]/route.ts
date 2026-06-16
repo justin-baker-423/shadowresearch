@@ -35,6 +35,7 @@ const TICKER_DOMAINS: Record<string, string> = {
   FICO: 'fico.com',
   HD:   'homedepot.com',
   LVMUY: 'lvmh.com',
+  NFLX: 'netflix.com',
 }
 
 const CACHE_SECONDS = 60 * 60 * 24   // 24 h

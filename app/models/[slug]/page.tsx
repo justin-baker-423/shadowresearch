@@ -13,6 +13,7 @@ import { getQxoModel, QXO_MODELS } from "@/lib/qxo-models"
 import { getHDModel, HD_MODELS } from "@/lib/hd-models"
 import { getFicoModel, FICO_MODELS } from "@/lib/fico-models"
 import { getLvmhModel, LVMH_MODELS } from "@/lib/lvmh-models"
+import { getNetflixModel, NETFLIX_MODELS } from "@/lib/netflix-models"
 import ModelShell from "@/components/ModelShell"
 import MetaModelShell from "@/components/MetaModelShell"
 import TeslaModelShell from "@/components/TeslaModelShell"
@@ -27,6 +28,7 @@ import QxoModelShell from "@/components/QxoModelShell"
 import HDModelShell from "@/components/HDModelShell"
 import FicoModelShell from "@/components/FicoModelShell"
 import LvmhModelShell from "@/components/LvmhModelShell"
+import NetflixModelShell from "@/components/NetflixModelShell"
 
 export const revalidate = 300 // refresh prices every 5 minutes
 
@@ -69,12 +71,13 @@ export async function generateStaticParams() {
     ...HD_MODELS.map(m => ({ slug: m.slug })),
     ...FICO_MODELS.map(m => ({ slug: m.slug })),
     ...LVMH_MODELS.map(m => ({ slug: m.slug })),
+    ...NETFLIX_MODELS.map(m => ({ slug: m.slug })),
   ]
 }
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params
-  const model  = getModel(slug) ?? getMetaModel(slug) ?? getTeslaModel(slug) ?? getLemonadeModel(slug) ?? getDeereModel(slug) ?? getCelsiusModel(slug) ?? getAtlassianModel(slug) ?? getSnowflakeModel(slug) ?? getNikeModel(slug) ?? getTsmModel(slug) ?? getQxoModel(slug) ?? getHDModel(slug) ?? getFicoModel(slug) ?? getLvmhModel(slug)
+  const model  = getModel(slug) ?? getMetaModel(slug) ?? getTeslaModel(slug) ?? getLemonadeModel(slug) ?? getDeereModel(slug) ?? getCelsiusModel(slug) ?? getAtlassianModel(slug) ?? getSnowflakeModel(slug) ?? getNikeModel(slug) ?? getTsmModel(slug) ?? getQxoModel(slug) ?? getHDModel(slug) ?? getFicoModel(slug) ?? getLvmhModel(slug) ?? getNetflixModel(slug)
   if (!model) return {}
   return {
     title: `${model.ticker} DCF — ${model.name}`,
@@ -204,6 +207,15 @@ export default async function ModelPage({ params }: Props) {
     const adjusted = livePrice ? { ...lvmhModel, currentPrice: livePrice } : lvmhModel
     const priceSource = livePrice ? "Live · OTC" : "Hardcoded"
     return <LvmhModelShell model={adjusted} priceSource={priceSource} fx={fx} />
+  }
+
+  // ── Netflix content-amortization DCF ──────────────────────────
+  const netflixModel = getNetflixModel(slug)
+  if (netflixModel) {
+    const livePrice = await yahooPrice(netflixModel.ticker)
+    const adjusted  = livePrice ? { ...netflixModel, currentPrice: livePrice } : netflixModel
+    const priceSource = livePrice ? "Live · NASDAQ" : "Hardcoded"
+    return <NetflixModelShell model={adjusted} priceSource={priceSource} />
   }
 
   // ── Standard earnings-based models (SAP / Chipotle engine) ────

@@ -18,8 +18,12 @@
 //  (the content-amort add-back and cash additions net to just excess.)
 //
 //  FY2025 anchors are from the FY2025 10-K / Q4'25 release. WBD pending
-//  acquisition is EXCLUDED — this is standalone Netflix, shares held flat
-//  (buybacks paused to accumulate cash for the WBD bridge).
+//  acquisition is EXCLUDED — this is standalone Netflix.
+//
+//  Capital allocation: Netflix holds ~2 months of revenue as cash; all
+//  cash generated above that floor sweeps into share repurchases at 25×
+//  EPS. The model tracks the cash balance year-by-year (built by levered
+//  FCF) to size each year's buyback.
 // ─────────────────────────────────────────────────────────────────
 
 import type { Scenario } from "./models"
@@ -53,7 +57,7 @@ export interface NetflixModelConfig {
 
   currency:     "USD"
   currentPrice: number   // $/share (post 10-for-1 split) — replaced live
-  sharesOut:    number   // diluted shares ($B) — held flat (buybacks paused)
+  sharesOut:    number   // diluted shares ($B) — opening count, reduced by buybacks
   netCash:      number   // net cash (+) / net debt (−) ($B)
 
   // ── DCF assumptions ───────────────────────────────────────────
@@ -61,12 +65,14 @@ export interface NetflixModelConfig {
   termGrowth:   number
   waccDefault:  number
 
-  // ── Capital allocation — buybacks ────────────────────────────
-  // Each year repurchase (buybackFCFShare × FCF) at buybackPE × that
-  // year's EPS, retiring (0.80 × FCF) / (25 × EPS) shares.
-  buybackFCFShare: number   // fraction of FCF directed to buybacks
-  buybackPE:       number   // P/E multiple paid on repurchases
-  netInterestBase: number   // FY2025 net interest expense ($B), to bridge EBIT→net income
+  // ── Capital allocation — cash-floor buybacks ─────────────────
+  // Netflix holds ~2 months of revenue as cash; ALL cash above that
+  // floor sweeps into repurchases at buybackPE × that year's EPS.
+  // Cash builds by levered FCF (UFCF − after-tax net interest).
+  cashBase:         number  // FY2025A cash & equivalents ($B) — opening balance
+  cashMonthsTarget: number  // months of revenue held as cash on hand
+  buybackPE:        number  // P/E multiple paid on repurchases
+  netInterestBase:  number  // FY2025 net interest expense ($B); bridges EBIT→net income & UFCF→levered FCF
 
   // ── Content-amortization engine inputs (FY2025A) ─────────────
   contentAssetBase: number  // content assets, net at 1-Jan-2026 ($B)
@@ -115,16 +121,17 @@ export const NETFLIX_MODELS: NetflixModelConfig[] = [
 
     currency:     "USD",
     currentPrice: 110,     // post 10-for-1 split — replaced live by Yahoo
-    sharesOut:    4.30,    // diluted shares (B), held flat — buybacks paused for WBD
-    netCash:      -5.46,   // net debt $5.46B (gross debt $14.5B − cash $9.0B)
+    sharesOut:    4.30,    // diluted shares (B) — opening count, reduced by buybacks
+    netCash:      -5.46,   // net debt $5.46B (gross debt $14.5B − cash $9.034B)
 
     taxRate:     0.137,    // FY2025 effective (1.74 / 12.72)
     termGrowth:  0.03,
     waccDefault: 0.10,
 
-    buybackFCFShare: 0.80,  // 80% of FCF to repurchases
-    buybackPE:       25,     // at ~25× current-year EPS
-    netInterestBase: 0.60,   // FY2025 net interest ($0.78B exp − $0.17B inc)
+    cashBase:         9.034,  // FY2025A cash & equivalents ($9,033,681K per 10-K)
+    cashMonthsTarget: 2,      // hold 2 months of revenue; sweep the rest to buybacks
+    buybackPE:        25,     // repurchase at ~25× current-year EPS
+    netInterestBase:  0.60,   // FY2025 net interest ($0.78B exp − $0.17B inc)
 
     contentAssetBase:   32.778,   // content assets, net at 1-Jan-2026 ($B)
     amortRate:          0.506,    // FY2025 amort $16.42B ÷ begin $32.45B

@@ -25,11 +25,13 @@
 //  not added back. Working capital assumed neutral (streaming deferred
 //  revenue ≈ offsets). WBD acquisition excluded.
 //
-//  Capital allocation: 80% of each year's FCF repurchases shares at 25×
-//  that year's EPS, retiring (0.80 × FCF) / (25 × EPS) shares. Terminal
+//  Capital allocation (cash-floor buybacks): a cash balance is tracked
+//  year-by-year, building by levered FCF (UFCF − after-tax net interest).
+//  Netflix holds 2 months of revenue (rev ÷ 6) as cash; ALL cash above
+//  that floor sweeps into repurchases at 25× that year's EPS. Terminal
 //  equity value is divided by the reduced ending share count (long-term
 //  holder accretion). Net income (EBIT − net interest, taxed) prices the
-//  buyback; the DCF's FCF itself stays unlevered.
+//  buyback; the DCF's EV itself stays on unlevered FCF.
 // ─────────────────────────────────────────────────────────────────
 
 import type { NetflixModelConfig, Scenario } from "./netflix-models"
@@ -58,7 +60,10 @@ export interface NetflixDCFRow {
   fcf:             number
   fcfM:            number
   pvFcf:           number
-  buyback:         number   // $ spent on repurchases (0.80 × FCF)
+  leveredFCF:      number   // UFCF − after-tax net interest (cash that lands on the balance sheet)
+  cashTarget:      number   // 2 months of revenue held as cash
+  cashEnd:         number   // cash & equivalents at END of period
+  buyback:         number   // $ swept into repurchases (cash above the floor)
   sharesBought:    number   // shares retired this year ($B)
   shares:          number   // diluted shares at END of period ($B)
 }
@@ -86,7 +91,7 @@ export function runNetflixDCF(
     baseRevenue, sharesOut, netCash, currentPrice, taxRate,
     contentAssetBase, amortRate, nonContentCOGSBase,
     marketingPct, techDevPct, gaPct, capexBase, otherDABase,
-    buybackFCFShare, buybackPE, netInterestBase,
+    cashBase, cashMonthsTarget, buybackPE, netInterestBase,
   } = model
   const { revGrowth, excessContent, nonContentCOGSGrowth } = model.scenarios[sc]
 
@@ -96,6 +101,7 @@ export function runNetflixDCF(
   let capex        = capexBase
   let otherDA      = otherDABase
   let shares       = sharesOut
+  let cash         = cashBase
   const rows: NetflixDCFRow[] = []
 
   for (let i = 0; i < 10; i++) {
@@ -131,8 +137,14 @@ export function runNetflixDCF(
     // Classical UFCF — amort add-back & cash additions collapse to excess
     const fcf = nopat + otherDA - excess - capex
 
-    // Buybacks: spend buybackFCFShare × FCF at buybackPE × EPS
-    const buyback      = buybackFCFShare * fcf
+    // Cash-floor buybacks: cash builds by levered FCF (UFCF less after-tax
+    // net interest), Netflix holds 2 months of revenue, and ALL cash above
+    // that floor sweeps into repurchases at buybackPE × EPS.
+    const leveredFCF   = fcf - netInterestBase * (1 - taxRate)
+    const cashTarget   = rev * (cashMonthsTarget / 12)
+    const cashAvail    = cash + leveredFCF
+    const buyback      = Math.max(0, cashAvail - cashTarget)
+    cash               = cashAvail - buyback   // = min(cashAvail, cashTarget)
     const buybackPrice = buybackPE * eps
     const sharesBought = buybackPrice > 0 ? buyback / buybackPrice : 0
     shares = shares - sharesBought
@@ -161,6 +173,9 @@ export function runNetflixDCF(
       fcf,
       fcfM:           fcf / rev,
       pvFcf:          fcf / Math.pow(1 + wacc, i + 1),
+      leveredFCF,
+      cashTarget,
+      cashEnd:        cash,
       buyback,
       sharesBought,
       shares,

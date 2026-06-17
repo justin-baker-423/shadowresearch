@@ -39,6 +39,10 @@ export default function NetflixModelShell({
   const grossExp = finalRow.grossMargin - model.baseGrossMargin
   const ebitExp  = finalRow.ebitMargin  - model.baseEbitMargin
 
+  // capital allocation
+  const cumBuyback   = M.rows.reduce((s, r) => s + r.buyback, 0)
+  const sharesRetired = (1 - finalRow.shares / model.sharesOut) * 100
+
   function sensColor(val: number) {
     const ratio = val / model.currentPrice
     if (ratio >= 1.3) return "sens-cell-green"
@@ -121,7 +125,7 @@ export default function NetflixModelShell({
         </div>
         <div className="model-subline">
           Content-amortization engine · amort = {fPct(model.amortRate)} × content-asset balance · non-content COGS +{fPct(model.scenarios[sc].nonContentCOGSGrowth)} ·
-          opex flat at {fPct(model.marketingPct + model.techDevPct + model.gaPct)} of revenue · 80% of FCF → buybacks @ {model.buybackPE}× EPS · WACC {fPct(wacc)} · Terminal g {fPct(termG)}
+          opex flat at {fPct(model.marketingPct + model.techDevPct + model.gaPct)} of revenue · {model.cashMonthsTarget}-mo revenue cash floor, excess → buybacks @ {model.buybackPE}× EPS · WACC {fPct(wacc)} · Terminal g {fPct(termG)}
         </div>
       </div>
 
@@ -221,6 +225,43 @@ export default function NetflixModelShell({
             </div>
           </div>
 
+          {/* capital allocation banner */}
+          <div className="bridge-card" style={{ marginBottom: 18 }}>
+            <div className="section-label">
+              Capital Allocation — {model.cashMonthsTarget}-Month Revenue Cash Floor, Excess Swept to Buybacks
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 24, marginTop: 6 }}>
+              <div>
+                <div className="kpi-label">Cash on hand</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-1)" }}>
+                  ${model.cashBase}B <span style={{ color: "var(--text-3)" }}>→</span> {fB(finalRow.cashEnd)}
+                </div>
+                <div className="kpi-sub">held at {model.cashMonthsTarget} mo of revenue (2035E floor {fB(finalRow.cashTarget)})</div>
+              </div>
+              <div>
+                <div className="kpi-label">Cumulative buybacks</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "var(--purple)" }}>
+                  {fB(cumBuyback)}
+                </div>
+                <div className="kpi-sub">2026–2035 · at {model.buybackPE}× EPS</div>
+              </div>
+              <div>
+                <div className="kpi-label">Shares retired</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "var(--purple)" }}>
+                  −{f1(sharesRetired)}%
+                </div>
+                <div className="kpi-sub">{model.sharesOut}B <span style={{ color: "var(--text-3)" }}>→</span> {f2(finalRow.shares)}B shares</div>
+              </div>
+              <div>
+                <div className="kpi-label">Cash build</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-1)" }}>
+                  Levered FCF
+                </div>
+                <div className="kpi-sub">UFCF − after-tax net interest (${model.netInterestBase}B)</div>
+              </div>
+            </div>
+          </div>
+
           <div className="section-label">
             FY2026–2035 Explicit Forecast — {sc.charAt(0).toUpperCase() + sc.slice(1)} Case
           </div>
@@ -236,6 +277,8 @@ export default function NetflixModelShell({
                   <th>Gross M%</th>
                   <th>Op M%</th>
                   <th>FCF</th>
+                  <th>Buyback</th>
+                  <th>Cash EOY</th>
                   <th>Shares</th>
                   <th>PV of FCF</th>
                 </tr>
@@ -251,6 +294,8 @@ export default function NetflixModelShell({
                     <td style={{ color: "var(--green)" }}>{fPct(r.grossMargin)}</td>
                     <td style={{ color: scColors.color }}>{fPct(r.ebitMargin)}</td>
                     <td>{fB(r.fcf)}</td>
+                    <td style={{ color: "var(--purple)" }}>{fB(r.buyback)}</td>
+                    <td style={{ color: "var(--text-2)" }} title={`2-mo revenue floor = ${fB(r.cashTarget)}`}>{fB(r.cashEnd)}</td>
                     <td style={{ color: "var(--text-2)" }}>{f2(r.shares)}B</td>
                     <td style={{ color: "var(--accent)" }}>{fB(r.pvFcf)}</td>
                   </tr>
@@ -258,13 +303,13 @@ export default function NetflixModelShell({
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={9} style={{ color: "var(--text-3)", fontSize: 11, textAlign: "left" }}>
+                  <td colSpan={11} style={{ color: "var(--text-3)", fontSize: 11, textAlign: "left" }}>
                     Terminal value · g={fPct(termG)} · WACC={fPct(wacc)} · {f1(M.gordon)}× Gordon multiple
                   </td>
                   <td style={{ color: "var(--accent)", fontWeight: 600 }}>{fB(M.pvTv)}</td>
                 </tr>
                 <tr className="ev-row">
-                  <td colSpan={9} style={{ color: "var(--accent)", fontWeight: 600, textAlign: "left" }}>
+                  <td colSpan={11} style={{ color: "var(--accent)", fontWeight: 600, textAlign: "left" }}>
                     Enterprise Value
                   </td>
                   <td style={{ color: "var(--accent)", fontWeight: 700, fontSize: 14 }}>{fB(M.ev)}</td>
@@ -427,8 +472,11 @@ export default function NetflixModelShell({
                 ["Other D&A",           `$${model.otherDABase}B base · grows with revenue`],
                 ["Working capital",     "assumed neutral (deferred revenue ≈ offsets)"],
                 ["SBC",                 "treated as cash cost (inside EBIT, not added back)"],
-                ["Buybacks",            `${fPct(model.buybackFCFShare)} of FCF at ${model.buybackPE}× current-year EPS`],
-                ["Net interest",        `$${model.netInterestBase}B (bridges EBIT→net income for buyback P/E)`],
+                ["Cash floor",          `hold ${model.cashMonthsTarget} months of revenue (rev ÷ ${12 / model.cashMonthsTarget}) as cash on hand`],
+                ["Opening cash",        `$${model.cashBase}B (FY${model.baseYear}A cash & equivalents)`],
+                ["Buybacks",            `all cash above the floor → repurchases at ${model.buybackPE}× current-year EPS`],
+                ["Cash build",          "levered FCF = UFCF − after-tax net interest"],
+                ["Net interest",        `$${model.netInterestBase}B (bridges EBIT→net income & UFCF→levered FCF)`],
               ],
             },
             {
@@ -462,7 +510,7 @@ export default function NetflixModelShell({
       <div className="disclaimer">
         For informational and educational purposes only · Not investment advice · All figures in USD ·
         Content-Amortization Engine · FCF = NOPAT + D&amp;A − excess content − capex ·
-        Content amort = {fPct(model.amortRate)} × content-asset balance · 80% of FCF → buybacks @ {model.buybackPE}× EPS ·
+        Content amort = {fPct(model.amortRate)} × content-asset balance · {model.cashMonthsTarget}-mo revenue cash floor, excess → buybacks @ {model.buybackPE}× EPS ·
         WBD acquisition excluded · Updated {model.lastUpdated}
       </div>
     </div>

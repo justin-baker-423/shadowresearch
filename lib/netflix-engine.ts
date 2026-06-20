@@ -1,15 +1,18 @@
 // ─────────────────────────────────────────────────────────────────
-//  netflix-engine.ts  —  Content-Amortization DCF engine.
+//  netflix-engine.ts  —  Vintage Content-Amortization DCF engine.
 //
-//  Core idea: content amortization (the bulk of COGS) is driven by the
-//  capitalised content-asset balance, NOT by revenue. The balance grows
-//  only by the "excess" cash invested above amortization each year, so
-//  as excess investment stays modest, amortization compounds far slower
-//  than revenue → gross- and operating-margin expansion.
+//  Core idea: content amortization (the bulk of COGS) is driven by how
+//  the content library amortizes, NOT by revenue. Each year's cash spend
+//  amortizes on a fixed ACCELERATED schedule, so when spend grows only a
+//  little faster than amortization, amortization compounds far slower than
+//  revenue → gross- and operating-margin expansion.
 //
-//    amort(t)        = amortRate × ContentAsset(t−1)
-//    ContentAsset(t) = ContentAsset(t−1) + excess(t)
-//    additions(t)    = amort(t) + excess(t)                (cash spend)
+//    amort(t)        = legacy(t) + pipeline(t) + Σ_k sched[k−1]·spend(t−k)
+//        legacy(t)   = disclosed run-off of the existing released balance
+//        pipeline(t) = pipelineBalance · sched[t−2026]  (in-prod releasing)
+//        sched       = accelerated cohort curve (1-yr release lag)
+//    spend(t)        = contentSpendMultiple × amort(t)   (mgmt ~1.1×)
+//    ContentAsset(t) = ContentAsset(t−1) + spend(t) − amort(t)
 //
 //    COGS(t)         = amort(t) + nonContentCOGS(t)
 //    nonContentCOGS  grows at scenario.nonContentCOGSGrowth
@@ -18,8 +21,8 @@
 //    EBIT  = Revenue − COGS − Marketing − Tech&Dev − G&A
 //    NOPAT = EBIT × (1 − tax)
 //
-//  Classical UFCF (content amort add-back + cash additions net to excess):
-//    FCF = NOPAT + otherD&A − excessContent − capex
+//  Classical UFCF (content amort add-back nets cash additions to the drain):
+//    FCF = NOPAT + otherD&A − (spend − amort) − capex
 //
 //  SBC is treated as a real (cash-equivalent) cost — already inside EBIT,
 //  not added back. Working capital assumed neutral (streaming deferred
@@ -40,7 +43,10 @@ export interface NetflixDCFRow {
   year:            number
   rev:             number
   revGrowth:       number
-  contentAmort:    number   // amortRate × prior content-asset balance
+  contentAmort:    number   // total content amortization this year
+  amortLegacy:     number   // from pre-2026 released balance (disclosed run-off)
+  amortPipeline:   number   // from the in-production pipeline releasing
+  amortNew:        number   // from FY2026+ vintages on the cohort curve
   nonContentCOGS:  number
   cogs:            number
   grossProfit:     number
@@ -53,8 +59,9 @@ export interface NetflixDCFRow {
   nopat:           number
   netIncome:       number   // (EBIT − net interest) × (1 − tax) — for buyback P/E
   eps:             number   // netIncome / beginning shares
-  excessContent:   number
-  contentAsset:    number   // end-of-period balance
+  contentSpend:    number   // cash additions to content this year (= multiple × amort)
+  spendToAmort:    number   // contentSpend / contentAmort
+  contentAsset:    number   // end-of-period library balance
   capex:           number
   otherDA:         number
   fcf:             number
@@ -89,11 +96,12 @@ export function runNetflixDCF(
 ): NetflixDCFResult {
   const {
     baseRevenue, sharesOut, netCash, currentPrice, taxRate,
-    contentAssetBase, amortRate, nonContentCOGSBase,
+    contentAssetBase, amortSchedule, legacyAmort, pipelineBalance,
+    nonContentCOGSBase,
     marketingPct, techDevPct, gaPct, capexBase, otherDABase,
     cashBase, cashMonthsTarget, buybackPE, netInterestBase,
   } = model
-  const { revGrowth, excessContent, nonContentCOGSGrowth } = model.scenarios[sc]
+  const { revGrowth, contentSpendMultiple, nonContentCOGSGrowth } = model.scenarios[sc]
 
   let rev          = baseRevenue
   let contentAsset = contentAssetBase
@@ -102,15 +110,30 @@ export function runNetflixDCF(
   let otherDA      = otherDABase
   let shares       = sharesOut
   let cash         = cashBase
+  const spends: number[] = []   // cash content spend by forecast year (vintages)
   const rows: NetflixDCFRow[] = []
 
   for (let i = 0; i < 10; i++) {
     rev = rev * (1 + revGrowth[i])
 
-    // Content amortization on the BEGINNING balance, then grow the balance
-    const contentAmort = amortRate * contentAsset
-    const excess       = excessContent[i]
-    contentAsset       = contentAsset + excess
+    // ── Vintage content amortization ────────────────────────────
+    // Pre-2026 content: disclosed run-off of the existing released balance
+    // (legacy) + the in-production pipeline releasing onto the cohort curve.
+    const legacy   = i < legacyAmort.length ? legacyAmort[i] : 0
+    const pipeline = i < amortSchedule.length ? pipelineBalance * amortSchedule[i] : 0
+    // New vintages: each prior forecast-year's spend amortized at its age,
+    // beginning the year AFTER the spend (1-yr release lag).
+    let newVintage = 0
+    for (let j = 0; j < i; j++) {
+      const age = i - j   // years after the spend year (≥ 1)
+      if (age >= 1 && age <= amortSchedule.length) newVintage += amortSchedule[age - 1] * spends[j]
+    }
+    const contentAmort = legacy + pipeline + newVintage
+
+    // Management's guided cash spend, then roll the library balance
+    const contentSpend = contentSpendMultiple * contentAmort
+    spends.push(contentSpend)
+    contentAsset = contentAsset + contentSpend - contentAmort
 
     // Non-content COGS compounds at its own (low) rate
     nonContentCOGS = nonContentCOGS * (1 + nonContentCOGSGrowth)
@@ -134,8 +157,8 @@ export function runNetflixDCF(
     capex   = capex   * (1 + revGrowth[i])
     otherDA = otherDA * (1 + revGrowth[i])
 
-    // Classical UFCF — amort add-back & cash additions collapse to excess
-    const fcf = nopat + otherDA - excess - capex
+    // Classical UFCF — content amort add-back nets cash additions to the drain
+    const fcf = nopat + otherDA - (contentSpend - contentAmort) - capex
 
     // Cash-floor buybacks: cash builds by levered FCF (UFCF less after-tax
     // net interest), Netflix holds 2 months of revenue, and ALL cash above
@@ -154,6 +177,9 @@ export function runNetflixDCF(
       rev,
       revGrowth:      revGrowth[i],
       contentAmort,
+      amortLegacy:    legacy,
+      amortPipeline:  pipeline,
+      amortNew:       newVintage,
       nonContentCOGS,
       cogs,
       grossProfit,
@@ -166,7 +192,8 @@ export function runNetflixDCF(
       nopat,
       netIncome,
       eps,
-      excessContent:  excess,
+      contentSpend,
+      spendToAmort:   contentSpend / contentAmort,
       contentAsset,
       capex,
       otherDA,

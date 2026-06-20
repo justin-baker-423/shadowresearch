@@ -25,7 +25,7 @@ export default function NetflixModelShell({
   const [sc,    setSc]    = useState<Scenario>("base")
   const [wacc,  setWacc]  = useState(model.waccDefault)
   const [termG, setTermG] = useState(model.termGrowth)
-  const [tab,   setTab]   = useState<"model" | "sensitivity" | "assumptions">("model")
+  const [tab,   setTab]   = useState<"model" | "content" | "sensitivity" | "assumptions">("model")
 
   const M    = useMemo(() => runNetflixDCF(model, sc, wacc, termG), [model, sc, wacc, termG])
   const SENS = useMemo(() => buildNetflixSensitivity(model, sc),     [model, sc])
@@ -124,8 +124,8 @@ export default function NetflixModelShell({
           )}
         </div>
         <div className="model-subline">
-          Content-amortization engine · amort = {fPct(model.amortRate)} × content-asset balance · non-content COGS +{fPct(model.scenarios[sc].nonContentCOGSGrowth)} ·
-          opex flat at {fPct(model.marketingPct + model.techDevPct + model.gaPct)} of revenue · {model.cashMonthsTarget}-mo revenue cash floor, excess → buybacks @ {model.buybackPE}× EPS · WACC {fPct(wacc)} · Terminal g {fPct(termG)}
+          Vintage content-amortization engine · accelerated cohort curve ({model.amortSchedule.map(w => Math.round(w * 100)).join("/")}%) · cash spend {f2(model.scenarios[sc].contentSpendMultiple)}× amortization ·
+          non-content COGS +{fPct(model.scenarios[sc].nonContentCOGSGrowth)} · opex flat at {fPct(model.marketingPct + model.techDevPct + model.gaPct)} of revenue · {model.cashMonthsTarget}-mo revenue cash floor, excess → buybacks @ {model.buybackPE}× EPS · WACC {fPct(wacc)} · Terminal g {fPct(termG)}
         </div>
       </div>
 
@@ -169,7 +169,7 @@ export default function NetflixModelShell({
         <div className="control-group">
           <div className="section-label">View</div>
           <div style={{ display: "flex", gap: 6 }}>
-            {(["model", "sensitivity", "assumptions"] as const).map(t => (
+            {(["model", "content", "sensitivity", "assumptions"] as const).map(t => (
               <button key={t} onClick={() => setTab(t)} className={`tab-btn ${tab === t ? "active" : ""}`}>
                 {t}
               </button>
@@ -220,7 +220,7 @@ export default function NetflixModelShell({
                 <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-1)" }}>
                   {fB(finalRow.contentAsset)}
                 </div>
-                <div className="kpi-sub">from ${model.contentAssetBase}B · +{fPct(model.scenarios[sc].excessContent[0] / model.contentAssetBase)}→ excess</div>
+                <div className="kpi-sub">from ${model.contentAssetBase}B · spend {f2(model.scenarios[sc].contentSpendMultiple)}× amort</div>
               </div>
             </div>
           </div>
@@ -341,6 +341,118 @@ export default function NetflixModelShell({
         </div>
       )}
 
+      {/* ── CONTENT TAB ── */}
+      {tab === "content" && (
+        <div>
+          {/* how Netflix actually amortizes */}
+          <div className="bridge-card" style={{ marginBottom: 18 }}>
+            <div className="section-label">How Netflix Amortizes Content — From the FY2025 10-K</div>
+            <div style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 1.65, marginTop: 6 }}>
+              Netflix capitalizes the cost of licensed and produced content, then amortizes it into COGS over the
+              shorter of each title&apos;s window, estimated period of use, or 10 years, beginning the month of first
+              availability. Amortization is <strong style={{ color: "var(--text-1)" }}>accelerated</strong> — more
+              viewing happens upfront, and film amortizes faster than series. On average,{" "}
+              <strong style={{ color: "var(--text-1)" }}>over 90% of a title is amortized within four years</strong>.
+              This engine mirrors that: each year&apos;s cash content spend is a vintage that runs off on the
+              accelerated curve below, so as spend grows only ~10% above amortization, amortization compounds far
+              slower than revenue — driving the gross-margin expansion.
+            </div>
+          </div>
+
+          {/* cohort curve + FY2025 balance composition */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
+            <div className="bridge-card">
+              <div className="section-label">Accelerated Cohort Curve (calibrated to the 10-K)</div>
+              <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 10 }}>
+                Share of a vintage&apos;s cash spend amortized in each year after the spend (1-yr release lag)
+              </div>
+              {model.amortSchedule.map((w, k) => (
+                <div key={k} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 7 }}>
+                  <span style={{ width: 52, fontSize: 11, color: "var(--text-3)" }}>Year {k + 1}</span>
+                  <div style={{ flex: 1, background: "var(--bg-2, rgba(255,255,255,0.04))", borderRadius: 4, height: 18, overflow: "hidden" }}>
+                    <div style={{ width: `${w * 100 / model.amortSchedule[0] * 0.95}%`, height: "100%", background: "var(--purple)", borderRadius: 4 }} />
+                  </div>
+                  <span style={{ width: 42, textAlign: "right", fontSize: 12, fontWeight: 600, color: "var(--purple)" }}>{fPct(w)}</span>
+                </div>
+              ))}
+              <div className="kpi-sub" style={{ marginTop: 8 }}>
+                {fPct(model.amortSchedule.slice(0, 4).reduce((s, w) => s + w, 0))} within 4 years
+              </div>
+            </div>
+
+            <div className="bridge-card">
+              <div className="section-label">FY2025 Content Library — $32.8B Net (10-K Note 5)</div>
+              <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 10 }}>
+                Only released content amortizes; the pipeline is capitalized but not yet expensing
+              </div>
+              {([
+                ["Licensed content, net",        12.139, "var(--green)",  "amortizing"],
+                ["Produced — released",          10.687, "var(--green)",  "amortizing"],
+                ["Produced — in production",      9.211, "var(--amber)",  "not yet"],
+                ["Produced — in development",     0.742, "var(--amber)",  "not yet"],
+              ] as [string, number, string, string][]).map(([lbl, v, col, tag]) => (
+                <div key={lbl} className="bridge-row">
+                  <span className="bridge-label">{lbl} <span style={{ color: "var(--text-3)", fontSize: 10 }}>· {tag}</span></span>
+                  <span className="bridge-value" style={{ color: col }}>{fB(v)}</span>
+                </div>
+              ))}
+              <div className="bridge-row" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", marginTop: 4, paddingTop: 6 }}>
+                <span className="bridge-label" style={{ fontWeight: 600 }}>Amortizing pool / annual amort</span>
+                <span className="bridge-value" style={{ color: "var(--text-1)" }}>$22.8B ÷ $16.4B ≈ 1.4×</span>
+              </div>
+            </div>
+          </div>
+
+          {/* per-year amortization schedule */}
+          <div className="section-label">
+            Content Spend &amp; Amortization Schedule — {sc.charAt(0).toUpperCase() + sc.slice(1)} Case
+          </div>
+          <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 8 }}>
+            Amortization split by source: legacy released balance · in-production pipeline · new FY2026+ vintages
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Year</th>
+                  <th>Cash Spend</th>
+                  <th>Spend / Amort</th>
+                  <th>Total Amort</th>
+                  <th>· Legacy</th>
+                  <th>· Pipeline</th>
+                  <th>· New vintages</th>
+                  <th>Library Balance</th>
+                  <th>Amort % of Rev</th>
+                </tr>
+              </thead>
+              <tbody>
+                {M.rows.map(r => (
+                  <tr key={r.year} style={{ borderBottom: "1px solid rgba(37,43,59,0.88)" }}>
+                    <td>{r.year}</td>
+                    <td style={{ color: "var(--text-1)" }}>{fB(r.contentSpend)}</td>
+                    <td style={{ color: scColors.color }}>{f2(r.spendToAmort)}×</td>
+                    <td style={{ color: "var(--purple)" }}>{fB(r.contentAmort)}</td>
+                    <td style={{ color: "var(--text-3)" }}>{fB(r.amortLegacy)}</td>
+                    <td style={{ color: "var(--text-3)" }}>{fB(r.amortPipeline)}</td>
+                    <td style={{ color: "var(--text-3)" }}>{fB(r.amortNew)}</td>
+                    <td style={{ color: "var(--text-2)" }}>{fB(r.contentAsset)}</td>
+                    <td style={{ color: "var(--green)" }}>{fPct(r.contentAmort / r.rev)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={9} style={{ color: "var(--text-3)", fontSize: 11, textAlign: "left" }}>
+                    Content amort CAGR {fPct(Math.pow(finalRow.contentAmort / M.rows[0].contentAmort, 1 / 9) - 1)} vs revenue CAGR {fPct(Math.pow(finalRow.rev / model.baseRevenue, 0.1) - 1)} ·
+                    amort falls from {fPct(M.rows[0].contentAmort / M.rows[0].rev)} to {fPct(finalRow.contentAmort / finalRow.rev)} of revenue — the engine of margin expansion
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* ── SENSITIVITY TAB ── */}
       {tab === "sensitivity" && (
         <div>
@@ -428,15 +540,17 @@ export default function NetflixModelShell({
         <div className="assumptions-grid">
           {[
             {
-              title: "Content-Amortization Engine",
+              title: "Vintage Content-Amortization Engine",
               color: "var(--purple)",
               rows: [
-                ["Mechanic",                "amort(t) = amortRate × content-asset balance(t−1)"],
-                ["Amortization rate",       `${fPct(model.amortRate)} (FY${model.baseYear}: $16.42B ÷ $32.45B begin)`],
-                ["Content assets (begin)",  `$${model.contentAssetBase}B at 1-Jan-2026`],
-                ["Balance growth",          "ContentAsset(t) = ContentAsset(t−1) + excess investment"],
-                ["Base excess content",     model.scenarios.base.excessContent.map(e => "$" + f1(e)).join(" → ") + "B"],
-                ["Cash content spend",      "additions = amortization + excess"],
+                ["Mechanic",                "each year's cash spend amortizes on a fixed accelerated curve"],
+                ["Cohort curve",            model.amortSchedule.map(w => fPct(w)).join(" / ") + " (yrs 1–5 after spend)"],
+                ["Calibration",             `10-K Content Assets note — >90% within 4 yrs, film > TV`],
+                ["Cash content spend",      `${f2(model.scenarios.base.contentSpendMultiple)}× that year's amortization (mgmt guidance)`],
+                ["Legacy run-off seed",     model.legacyAmort.map(a => "$" + f1(a)).join(" → ") + "B (2026→2030)"],
+                ["In-production pipeline",  `$${model.pipelineBalance}B releases onto the curve from 2026`],
+                ["Library balance",         "ContentAsset(t) = ContentAsset(t−1) + spend − amort"],
+                ["FY2025A reference",       `amort $${model.contentAmortBase}B · spend $${model.contentSpendBase}B (1.04×)`],
               ],
             },
             {
@@ -466,7 +580,7 @@ export default function NetflixModelShell({
               title: "Free Cash Flow & Capital Allocation",
               color: "var(--amber)",
               rows: [
-                ["FCF formula",         "NOPAT + other D&A − excess content − capex"],
+                ["FCF formula",         "NOPAT + other D&A − (content spend − amort) − capex"],
                 ["NOPAT",               `EBIT × (1 − ${fPct(model.taxRate)} tax)`],
                 ["Capex",               `$${model.capexBase}B base · grows with revenue`],
                 ["Other D&A",           `$${model.otherDABase}B base · grows with revenue`],
@@ -509,8 +623,8 @@ export default function NetflixModelShell({
 
       <div className="disclaimer">
         For informational and educational purposes only · Not investment advice · All figures in USD ·
-        Content-Amortization Engine · FCF = NOPAT + D&amp;A − excess content − capex ·
-        Content amort = {fPct(model.amortRate)} × content-asset balance · {model.cashMonthsTarget}-mo revenue cash floor, excess → buybacks @ {model.buybackPE}× EPS ·
+        Vintage Content-Amortization Engine · FCF = NOPAT + D&amp;A − (content spend − amort) − capex ·
+        accelerated cohort curve calibrated to the FY2025 10-K · {model.cashMonthsTarget}-mo revenue cash floor, excess → buybacks @ {model.buybackPE}× EPS ·
         WBD acquisition excluded · Updated {model.lastUpdated}
       </div>
     </div>

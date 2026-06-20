@@ -2,20 +2,28 @@
 //  netflix-models.ts  —  Content-Amortization DCF engine config.
 //
 //  Separate from models.ts because Netflix's economics are driven by
-//  the content-asset balance: amortization (the bulk of COGS) is a
-//  function of the capitalised content library, not of revenue. As
-//  content-asset growth slows, amortization compounds far slower than
-//  revenue → gross- and operating-margin expansion.
+//  how the capitalised content library amortizes, NOT by revenue. As
+//  content investment decelerates relative to amortization, amortization
+//  (the bulk of COGS) compounds far slower than revenue → gross- and
+//  operating-margin expansion.
 //
-//  State variable: ContentAsset (net, $B).
-//    amort(t)       = amortRate × ContentAsset(t−1)
-//    excess(t)      = scheduled cash invested in content ABOVE amort ($B)
-//    additions(t)   = amort(t) + excess(t)          (cash content spend)
-//    ContentAsset(t)= ContentAsset(t−1) + excess(t)
+//  VINTAGE-AMORTIZATION ENGINE (mirrors the 10-K accounting):
+//    • Each year's cash content spend is a "vintage."
+//    • A vintage amortizes on a fixed ACCELERATED schedule beginning the
+//      year after the spend (a ~1-yr production/release lag). The curve is
+//      calibrated to the FY2025 10-K Content Assets note: ~47/22/15/10/6%
+//      over five years (>90% within four years; film faster than TV).
+//        amort(t) = Σ_k amortSchedule[k−1] × spend(t−k)
+//    • Cash content spend is set to management's guided multiple of that
+//      year's amortization:  spend(t) = contentSpendMultiple × amort(t).
+//    • The library balance rolls: ContentAsset(t) = ContentAsset(t−1)
+//      + spend(t) − amort(t).
+//    • Seed: the existing released balance ($22.8B) runs off per the
+//      disclosed 3-yr schedule (legacyAmort), and the $9.95B in-production
+//      pipeline releases onto the same curve (pipelineBalance).
 //
-//  Classical UFCF then collapses to:
-//    FCF = NOPAT + otherD&A − excessContent − capex
-//  (the content-amort add-back and cash additions net to just excess.)
+//  Classical UFCF (content amort add-back nets cash additions to the drain):
+//    FCF = NOPAT + otherD&A − (spend − amort) − capex
 //
 //  FY2025 anchors are from the FY2025 10-K / Q4'25 release. WBD pending
 //  acquisition is EXCLUDED — this is standalone Netflix.
@@ -32,9 +40,9 @@ export type { Scenario }
 export interface NetflixScenarioAssumptions {
   // 10 values — FY2026–2035 revenue growth (decimal)
   revGrowth: number[]
-  // 10 values — FY2026–2035 cash content investment IN EXCESS of amortization ($B)
-  // This is the net add to the content-asset balance each year.
-  excessContent: number[]
+  // Cash content spend as a multiple of that year's content amortization
+  // (management guides ~1.1×). Drives library growth and margin trajectory.
+  contentSpendMultiple: number
   // Annual growth of the non-content portion of cost of revenues (decimal)
   nonContentCOGSGrowth: number
 }
@@ -74,9 +82,20 @@ export interface NetflixModelConfig {
   buybackPE:        number  // P/E multiple paid on repurchases
   netInterestBase:  number  // FY2025 net interest expense ($B); bridges EBIT→net income & UFCF→levered FCF
 
-  // ── Content-amortization engine inputs (FY2025A) ─────────────
-  contentAssetBase: number  // content assets, net at 1-Jan-2026 ($B)
-  amortRate:        number  // content amort ÷ beginning content-asset balance
+  // ── Vintage content-amortization engine inputs (FY2025A) ─────
+  contentAssetBase: number  // total content assets, net at 1-Jan-2026 ($B)
+  // Accelerated cohort curve: fraction of a vintage's cash spend amortized
+  // in each of the 5 years AFTER the spend year (1-yr release lag). Calibrated
+  // to the 10-K Content Assets note (blended licensed + produced run-off).
+  amortSchedule:    number[]
+  // Disclosed forward amortization of the existing RELEASED balance ($22.8B),
+  // FY2026→2030 ($B) — the legacy run-off seed.
+  legacyAmort:      number[]
+  // In-production + in-development balance ($B) not yet amortizing at FY2025;
+  // releases onto amortSchedule beginning FY2026.
+  pipelineBalance:  number
+  contentAmortBase: number  // FY2025A content amortization ($B) — reference
+  contentSpendBase: number  // FY2025A cash additions to content ($B) — reference
   nonContentCOGSBase: number // FY2025 cost of revenues − content amort ($B)
 
   // ── Opex held flat as % of revenue (FY2025 ratios) ───────────
@@ -95,11 +114,6 @@ export interface NetflixModelConfig {
   scenarios: Record<Scenario, NetflixScenarioAssumptions>
 
   accentColor?: string
-}
-
-// linear ramp helper: n values from `from` to `to` inclusive
-function ramp(from: number, to: number, n = 10): number[] {
-  return Array.from({ length: n }, (_, i) => from + (to - from) * (i / (n - 1)))
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -133,8 +147,15 @@ export const NETFLIX_MODELS: NetflixModelConfig[] = [
     buybackPE:        25,     // repurchase at ~25× current-year EPS
     netInterestBase:  0.60,   // FY2025 net interest ($0.78B exp − $0.17B inc)
 
-    contentAssetBase:   32.778,   // content assets, net at 1-Jan-2026 ($B)
-    amortRate:          0.506,    // FY2025 amort $16.42B ÷ begin $32.45B
+    contentAssetBase:   32.778,   // total content assets, net at 1-Jan-2026 ($B)
+    // Accelerated cohort curve (10-K: blended licensed+produced run-off,
+    // ~47/22/15/10/6; 94% within 4 yrs). Applies starting the year after spend.
+    amortSchedule:      [0.47, 0.22, 0.15, 0.10, 0.06],
+    // Disclosed run-off of the existing $22.8B RELEASED balance, FY2026→2030 ($B)
+    legacyAmort:        [10.69, 5.06, 3.31, 2.30, 1.46],
+    pipelineBalance:    9.952,    // in-production $9.21B + in-development $0.74B (10-K Note 5)
+    contentAmortBase:   16.422,   // FY2025A content amortization ($B)
+    contentSpendBase:   17.097,   // FY2025A additions to content assets ($B, cash-flow stmt)
     nonContentCOGSBase: 6.853,    // FY2025 COGS $23.28B − content amort $16.42B
 
     marketingPct: 0.0731,   // $3.30B / $45.18B
@@ -150,22 +171,22 @@ export const NETFLIX_MODELS: NetflixModelConfig[] = [
     accentColor: "#E50914", // Netflix red
 
     scenarios: {
-      // ── Bear: slower growth, content arms-race (heavier excess), cost creep
+      // ── Bear: slower growth, content arms-race (spend further above amort), cost creep
       bear: {
-        revGrowth:     [0.13, 0.11, 0.10, 0.09, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08],
-        excessContent: ramp(3.0, 6.0),   // must keep spending to defend engagement
+        revGrowth:            [0.13, 0.11, 0.10, 0.09, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08],
+        contentSpendMultiple: 1.20,   // must outspend amort to defend engagement
         nonContentCOGSGrowth: 0.10,
       },
-      // ── Base: user's literal assumptions
+      // ── Base: management's guided ~1.1× spend-to-amortization
       base: {
-        revGrowth:     [0.16, 0.14, 0.13, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12],
-        excessContent: ramp(2.0, 4.0),   // $2B → $4B excess content investment
+        revGrowth:            [0.16, 0.14, 0.13, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12],
+        contentSpendMultiple: 1.10,   // guided cash content spend ≈ 1.1× amortization
         nonContentCOGSGrowth: 0.08,
       },
-      // ── Bull: stronger growth, content efficiency (lighter excess)
+      // ── Bull: stronger growth, content efficiency (spend closer to amort)
       bull: {
-        revGrowth:     [0.18, 0.16, 0.15, 0.14, 0.13, 0.13, 0.12, 0.12, 0.12, 0.12],
-        excessContent: ramp(1.5, 3.0),
+        revGrowth:            [0.18, 0.16, 0.15, 0.14, 0.13, 0.13, 0.12, 0.12, 0.12, 0.12],
+        contentSpendMultiple: 1.05,
         nonContentCOGSGrowth: 0.07,
       },
     },

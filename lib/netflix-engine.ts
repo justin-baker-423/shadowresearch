@@ -97,11 +97,14 @@ export function runNetflixDCF(
   const {
     baseRevenue, sharesOut, netCash, currentPrice, taxRate,
     contentAssetBase, amortSchedule, legacyAmort, pipelineBalance,
-    nonContentCOGSBase,
+    contentSpendBase, nonContentCOGSBase,
     marketingPct, techDevPct, gaPct, capexBase, otherDABase,
     cashBase, cashMonthsTarget, buybackPE, netInterestBase,
   } = model
-  const { revGrowth, contentSpendMultiple, nonContentCOGSGrowth } = model.scenarios[sc]
+  const {
+    revGrowth, contentSpendMultiple, contentSpendGrowthSpread,
+    nonContentCOGSGrowth, nonContentCOGSGrowthSpread,
+  } = model.scenarios[sc]
 
   let rev          = baseRevenue
   let contentAsset = contentAssetBase
@@ -110,6 +113,7 @@ export function runNetflixDCF(
   let otherDA      = otherDABase
   let shares       = sharesOut
   let cash         = cashBase
+  let prevSpend    = contentSpendBase   // FY2025A cash content spend — seeds growth-driven spend
   const spends: number[] = []   // cash content spend by forecast year (vintages)
   const rows: NetflixDCFRow[] = []
 
@@ -130,13 +134,21 @@ export function runNetflixDCF(
     }
     const contentAmort = legacy + pipeline + newVintage
 
-    // Management's guided cash spend, then roll the library balance
-    const contentSpend = contentSpendMultiple * contentAmort
+    // Cash content spend — either a multiple of amortization (base/bull) or
+    // growing a fixed spread vs revenue off the prior year's spend (bear).
+    const contentSpend = contentSpendGrowthSpread !== undefined
+      ? prevSpend * (1 + revGrowth[i] + contentSpendGrowthSpread)
+      : (contentSpendMultiple ?? 1) * contentAmort
+    prevSpend = contentSpend
     spends.push(contentSpend)
     contentAsset = contentAsset + contentSpend - contentAmort
 
-    // Non-content COGS compounds at its own (low) rate
-    nonContentCOGS = nonContentCOGS * (1 + nonContentCOGSGrowth)
+    // Non-content COGS compounds at a fixed rate (base/bull) or a spread
+    // vs revenue growth (bear: 2pp below revenue)
+    const nccGrowth = nonContentCOGSGrowthSpread !== undefined
+      ? revGrowth[i] + nonContentCOGSGrowthSpread
+      : (nonContentCOGSGrowth ?? 0)
+    nonContentCOGS = nonContentCOGS * (1 + nccGrowth)
     const cogs        = contentAmort + nonContentCOGS
     const grossProfit = rev - cogs
 

@@ -43,6 +43,26 @@ export default function NetflixModelShell({
   const cumBuyback   = M.rows.reduce((s, r) => s + r.buyback, 0)
   const sharesRetired = (1 - finalRow.shares / model.sharesOut) * 100
 
+  // describes how content spend is driven in a given scenario
+  function spendDriver(s: Scenario) {
+    const a = model.scenarios[s]
+    if (a.contentSpendGrowthSpread !== undefined) {
+      const pp = a.contentSpendGrowthSpread * 100
+      return `grows ${pp > 0 ? "+" : ""}${pp.toFixed(0)}pp vs revenue`
+    }
+    return `${f2(a.contentSpendMultiple ?? 0)}× amortization`
+  }
+
+  // describes how non-content COGS grows in a given scenario
+  function nccDriver(s: Scenario) {
+    const a = model.scenarios[s]
+    if (a.nonContentCOGSGrowthSpread !== undefined) {
+      const pp = a.nonContentCOGSGrowthSpread * 100
+      return `rev ${pp > 0 ? "+" : ""}${pp.toFixed(0)}pp`
+    }
+    return `+${fPct(a.nonContentCOGSGrowth ?? 0)}`
+  }
+
   function sensColor(val: number) {
     const ratio = val / model.currentPrice
     if (ratio >= 1.3) return "sens-cell-green"
@@ -124,8 +144,8 @@ export default function NetflixModelShell({
           )}
         </div>
         <div className="model-subline">
-          Vintage content-amortization engine · accelerated cohort curve ({model.amortSchedule.map(w => Math.round(w * 100)).join("/")}%) · cash spend {f2(model.scenarios[sc].contentSpendMultiple)}× amortization ·
-          non-content COGS +{fPct(model.scenarios[sc].nonContentCOGSGrowth)} · opex flat at {fPct(model.marketingPct + model.techDevPct + model.gaPct)} of revenue · {model.cashMonthsTarget}-mo revenue cash floor, excess → buybacks @ {model.buybackPE}× EPS · WACC {fPct(wacc)} · Terminal g {fPct(termG)}
+          Vintage content-amortization engine · accelerated cohort curve ({model.amortSchedule.map(w => Math.round(w * 100)).join("/")}%) · cash spend {spendDriver(sc)} ·
+          non-content COGS {nccDriver(sc)} · opex flat at {fPct(model.marketingPct + model.techDevPct + model.gaPct)} of revenue · {model.cashMonthsTarget}-mo revenue cash floor, excess → buybacks @ {model.buybackPE}× EPS · WACC {fPct(wacc)} · Terminal g {fPct(termG)}
         </div>
       </div>
 
@@ -220,7 +240,7 @@ export default function NetflixModelShell({
                 <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-1)" }}>
                   {fB(finalRow.contentAsset)}
                 </div>
-                <div className="kpi-sub">from ${model.contentAssetBase}B · spend {f2(model.scenarios[sc].contentSpendMultiple)}× amort</div>
+                <div className="kpi-sub">from ${model.contentAssetBase}B · spend {spendDriver(sc)}</div>
               </div>
             </div>
           </div>
@@ -546,7 +566,7 @@ export default function NetflixModelShell({
                 ["Mechanic",                "each year's cash spend amortizes on a fixed accelerated curve"],
                 ["Cohort curve",            model.amortSchedule.map(w => fPct(w)).join(" / ") + " (yrs 1–5 after spend)"],
                 ["Calibration",             `10-K Content Assets note — >90% within 4 yrs, film > TV`],
-                ["Cash content spend",      `${f2(model.scenarios.base.contentSpendMultiple)}× that year's amortization (mgmt guidance)`],
+                ["Cash content spend",      `base/bull: multiple × amort · bear: ${spendDriver("bear")}`],
                 ["Legacy run-off seed",     model.legacyAmort.map(a => "$" + f1(a)).join(" → ") + "B (2026→2030)"],
                 ["In-production pipeline",  `$${model.pipelineBalance}B releases onto the curve from 2026`],
                 ["Library balance",         "ContentAsset(t) = ContentAsset(t−1) + spend − amort"],
@@ -559,7 +579,7 @@ export default function NetflixModelShell({
               rows: [
                 ["COGS",                    "content amortization + non-content COGS"],
                 ["Non-content COGS base",   `$${model.nonContentCOGSBase}B (FY${model.baseYear})`],
-                ["Non-content COGS growth", `bear ${fPct(model.scenarios.bear.nonContentCOGSGrowth)} · base ${fPct(model.scenarios.base.nonContentCOGSGrowth)} · bull ${fPct(model.scenarios.bull.nonContentCOGSGrowth)}`],
+                ["Non-content COGS growth", `bear ${nccDriver("bear")} · base ${nccDriver("base")} · bull ${nccDriver("bull")}`],
                 ["Marketing",               `${fPct(model.marketingPct)} of revenue (flat at FY${model.baseYear})`],
                 ["Technology & development", `${fPct(model.techDevPct)} of revenue (flat)`],
                 ["General & administrative", `${fPct(model.gaPct)} of revenue (flat)`],

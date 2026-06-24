@@ -40,11 +40,17 @@ export type { Scenario }
 export interface NetflixScenarioAssumptions {
   // 10 values — FY2026–2035 revenue growth (decimal)
   revGrowth: number[]
-  // Cash content spend as a multiple of that year's content amortization
-  // (management guides ~1.1×). Drives library growth and margin trajectory.
-  contentSpendMultiple: number
-  // Annual growth of the non-content portion of cost of revenues (decimal)
-  nonContentCOGSGrowth: number
+  // Content-spend driver — exactly ONE of the following two is used:
+  //  • contentSpendMultiple: cash spend = multiple × that year's amortization
+  //    (management guides ~1.1×). Used by base/bull.
+  //  • contentSpendGrowthSpread: cash spend grows at (revGrowth + spread) off
+  //    the prior year's spend (e.g. −0.02 ⇒ 2pp below revenue). Used by bear.
+  contentSpendMultiple?:    number
+  contentSpendGrowthSpread?: number
+  // Non-content COGS growth — either a fixed annual rate (base/bull) OR a
+  // spread vs revenue growth (bear: −0.02 ⇒ grows 2pp below revenue). One set.
+  nonContentCOGSGrowth?:       number
+  nonContentCOGSGrowthSpread?: number
 }
 
 export interface NetflixModelConfig {
@@ -171,11 +177,13 @@ export const NETFLIX_MODELS: NetflixModelConfig[] = [
     accentColor: "#E50914", // Netflix red
 
     scenarios: {
-      // ── Bear: slower growth, content arms-race (spend further above amort), cost creep
+      // ── Bear: slower growth with disciplined costs — both content spend
+      //    and non-content COGS grow ~2pp below revenue. The spend/amort
+      //    ratio floats out of the schedule; margins still expand, gently.
       bear: {
-        revGrowth:            [0.13, 0.11, 0.10, 0.09, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08],
-        contentSpendMultiple: 1.20,   // must outspend amort to defend engagement
-        nonContentCOGSGrowth: 0.10,
+        revGrowth:                  [0.13, 0.11, 0.10, 0.09, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08],
+        contentSpendGrowthSpread:   -0.02,   // cash content spend grows ~2pp below revenue
+        nonContentCOGSGrowthSpread: -0.02,   // non-content COGS grows ~2pp below revenue
       },
       // ── Base: management's guided ~1.1× spend-to-amortization
       base: {

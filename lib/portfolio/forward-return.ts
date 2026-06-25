@@ -39,6 +39,9 @@ import { runNikeDCF }       from '@/lib/nike-engine'
 import { runTeslaDCF }      from '@/lib/tesla-engine'
 import { TESLA_MODELS }     from '@/lib/tesla-models'
 
+import { runNetflixDCF }    from '@/lib/netflix-engine'
+import { NETFLIX_MODELS }   from '@/lib/netflix-models'
+
 // ── Manual overrides (no DCF model; conviction-based estimate) ───
 const MANUAL_CAGR: Record<string, number> = {
   COIN: 0.15,  // difficult to value; pencilled in at above-market 15% (May 2026)
@@ -55,6 +58,13 @@ function cagrForTicker(ticker: string, livePrice: number): number | null {
     if (teslaModel) {
       const m = { ...teslaModel, currentPrice: livePrice }
       return runTeslaDCF(m, m.waccDefault, m.termGrowth).impliedCAGR
+    }
+
+    // ── Netflix (content-amortization; lookup by ticker not slug) ──
+    const netflixModel = NETFLIX_MODELS.find(m => m.ticker === ticker.toUpperCase())
+    if (netflixModel) {
+      const m = { ...netflixModel, currentPrice: livePrice }
+      return runNetflixDCF(m, 'base', m.waccDefault, m.termGrowth).impliedCAGR
     }
 
     // ── Meta (ROIC-driven) ─────────────────────────────────────

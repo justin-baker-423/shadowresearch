@@ -140,7 +140,7 @@ export const NETFLIX_MODELS: NetflixModelConfig[] = [
     baseRevenue: 45.183,   // FY2025A total revenue ($B)
 
     currency:     "USD",
-    currentPrice: 110,     // post 10-for-1 split — replaced live by Yahoo
+    currentPrice: 70.90,   // live ~$71 anchor — replaced live by Yahoo on the perf tab
     sharesOut:    4.30,    // diluted shares (B) — opening count, reduced by buybacks
     netCash:      -5.46,   // net debt $5.46B (gross debt $14.5B − cash $9.034B)
 

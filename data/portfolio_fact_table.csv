@@ -497,3 +497,4 @@ CUSIP: 166764100",SELL,EQUITY,20.0,211.85,4237.0,0.0,CSV-Robinhood,
 2026-05-08,2026-05-08,Schwab IRA,DE,DEERE & CO,DIVIDEND,EQUITY,0.0,0.0,16.41,0.0,manual-entry,Cash dividend reinvested same day; user-provided
 2026-05-08,2026-05-08,Schwab IRA,DE,DEERE & CO,REINVEST,EQUITY,0.0283,579.8587,-16.41,0.0,manual-entry,Dividend reinvested into 0.0283 sh DE; user-provided
 2026-06-08,2026-06-08,Robinhood,,External cash deposit,DEPOSIT,CASH,0,0,9126.0,0.0,manual-entry,Cash contribution; user-provided (existing ~$147 already in ledger)
+2026-06-25,2026-06-26,Robinhood,NFLX,NETFLIX INC,BUY,EQUITY,70.0,70.98,-4968.6,0.0,manual-entry,User-provided brokerage purchase

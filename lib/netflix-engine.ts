@@ -1,21 +1,23 @@
 // ─────────────────────────────────────────────────────────────────
-//  netflix-engine.ts  —  Vintage Content-Amortization DCF engine.
+//  netflix-engine.ts  —  Content-Amortization DCF engine (spend-anchored).
 //
-//  Core idea: content amortization (the bulk of COGS) is driven by how
-//  the content library amortizes, NOT by revenue. Each year's cash spend
-//  amortizes on a fixed ACCELERATED schedule, so when spend grows only a
-//  little faster than amortization, amortization compounds far slower than
-//  revenue → gross- and operating-margin expansion.
+//  Core idea: content amortization (the bulk of COGS) tracks cash content
+//  SPEND at management's guided ratio. Spend is anchored to the $20B FY2026
+//  guidance, then grows a fixed spread BELOW revenue — so amortization
+//  compounds slower than revenue → gross- and operating-margin expansion.
 //
-//    amort(t)        = legacy(t) + pipeline(t) + Σ_k sched[k−1]·spend(t−k)
-//        legacy(t)   = disclosed run-off of the existing released balance
-//        pipeline(t) = pipelineBalance · sched[t−2026]  (in-prod releasing)
-//        sched       = accelerated cohort curve (1-yr release lag)
-//    spend(t)        = contentSpendMultiple × amort(t)   (mgmt ~1.1×)
+//    spend(2026)     = content2026Spend                 ($20B guidance)
+//    spend(t>2026)   = spend(t−1) · (1 + revGrowth + contentSpendGrowthSpread)
+//    amort(t)        = spend(t) / contentSpendRatio      (ratio ≈ 1.1×)
 //    ContentAsset(t) = ContentAsset(t−1) + spend(t) − amort(t)
 //
+//  (The earlier title-level cohort convolution under-counted near-term
+//  amortization — wrongly showing it fall below the prior year — so the
+//  model anchors to the guided spend/amort ratio instead. The disclosed
+//  accelerated curve is retained as reference in the Content tab only.)
+//
 //    COGS(t)         = amort(t) + nonContentCOGS(t)
-//    nonContentCOGS  grows at scenario.nonContentCOGSGrowth
+//    nonContentCOGS  grows at a fixed rate (base/bull) or a spread vs revenue (bear)
 //    Marketing / Tech&Dev / G&A held flat as % of revenue (FY2025)
 //
 //    EBIT  = Revenue − COGS − Marketing − Tech&Dev − G&A
@@ -43,10 +45,8 @@ export interface NetflixDCFRow {
   year:            number
   rev:             number
   revGrowth:       number
-  contentAmort:    number   // total content amortization this year
-  amortLegacy:     number   // from pre-2026 released balance (disclosed run-off)
-  amortPipeline:   number   // from the in-production pipeline releasing
-  amortNew:        number   // from FY2026+ vintages on the cohort curve
+  contentAmort:    number   // content amortization this year (= spend / ratio)
+  amortYoY:        number   // YoY growth in content amortization
   nonContentCOGS:  number
   cogs:            number
   grossProfit:     number
@@ -96,13 +96,13 @@ export function runNetflixDCF(
 ): NetflixDCFResult {
   const {
     baseRevenue, sharesOut, netCash, currentPrice, taxRate,
-    contentAssetBase, amortSchedule, legacyAmort, pipelineBalance,
-    contentSpendBase, nonContentCOGSBase,
+    contentAssetBase, content2026Spend, contentSpendRatio, contentAmortBase,
+    nonContentCOGSBase,
     marketingPct, techDevPct, gaPct, capexBase, otherDABase,
     cashBase, cashMonthsTarget, buybackPE, netInterestBase,
   } = model
   const {
-    revGrowth, contentSpendMultiple, contentSpendGrowthSpread,
+    revGrowth, contentSpendGrowthSpread,
     nonContentCOGSGrowth, nonContentCOGSGrowthSpread,
   } = model.scenarios[sc]
 
@@ -113,35 +113,23 @@ export function runNetflixDCF(
   let otherDA      = otherDABase
   let shares       = sharesOut
   let cash         = cashBase
-  let prevSpend    = contentSpendBase   // FY2025A cash content spend — seeds growth-driven spend
-  const spends: number[] = []   // cash content spend by forecast year (vintages)
+  let contentSpend = content2026Spend   // FY2026 anchored to management's $20B guidance
+  let prevAmort    = contentAmortBase   // FY2025A amortization — for YoY growth
   const rows: NetflixDCFRow[] = []
 
   for (let i = 0; i < 10; i++) {
     rev = rev * (1 + revGrowth[i])
 
-    // ── Vintage content amortization ────────────────────────────
-    // Pre-2026 content: disclosed run-off of the existing released balance
-    // (legacy) + the in-production pipeline releasing onto the cohort curve.
-    const legacy   = i < legacyAmort.length ? legacyAmort[i] : 0
-    const pipeline = i < amortSchedule.length ? pipelineBalance * amortSchedule[i] : 0
-    // New vintages: each prior forecast-year's spend amortized at its age,
-    // beginning the year AFTER the spend (1-yr release lag).
-    let newVintage = 0
-    for (let j = 0; j < i; j++) {
-      const age = i - j   // years after the spend year (≥ 1)
-      if (age >= 1 && age <= amortSchedule.length) newVintage += amortSchedule[age - 1] * spends[j]
-    }
-    const contentAmort = legacy + pipeline + newVintage
-
-    // Cash content spend — either a multiple of amortization (base/bull) or
-    // growing a fixed spread vs revenue off the prior year's spend (bear).
-    const contentSpend = contentSpendGrowthSpread !== undefined
-      ? prevSpend * (1 + revGrowth[i] + contentSpendGrowthSpread)
-      : (contentSpendMultiple ?? 1) * contentAmort
-    prevSpend = contentSpend
-    spends.push(contentSpend)
-    contentAsset = contentAsset + contentSpend - contentAmort
+    // ── Spend-anchored content amortization ─────────────────────
+    // FY2026 spend is the $20B guidance anchor; thereafter it grows at
+    // (revGrowth + spread). Amortization tracks the guided steady-state
+    // ratio, so amort always rises with spend (never the false decline of
+    // the old cohort convolution).
+    if (i > 0) contentSpend = contentSpend * (1 + revGrowth[i] + contentSpendGrowthSpread)
+    const contentAmort = contentSpend / contentSpendRatio
+    const amortYoY     = contentAmort / prevAmort - 1
+    prevAmort          = contentAmort
+    contentAsset       = contentAsset + contentSpend - contentAmort
 
     // Non-content COGS compounds at a fixed rate (base/bull) or a spread
     // vs revenue growth (bear: 2pp below revenue)
@@ -189,9 +177,7 @@ export function runNetflixDCF(
       rev,
       revGrowth:      revGrowth[i],
       contentAmort,
-      amortLegacy:    legacy,
-      amortPipeline:  pipeline,
-      amortNew:       newVintage,
+      amortYoY,
       nonContentCOGS,
       cogs,
       grossProfit,

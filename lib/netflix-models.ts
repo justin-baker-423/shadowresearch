@@ -7,20 +7,24 @@
 //  (the bulk of COGS) compounds far slower than revenue → gross- and
 //  operating-margin expansion.
 //
-//  VINTAGE-AMORTIZATION ENGINE (mirrors the 10-K accounting):
-//    • Each year's cash content spend is a "vintage."
-//    • A vintage amortizes on a fixed ACCELERATED schedule beginning the
-//      year after the spend (a ~1-yr production/release lag). The curve is
-//      calibrated to the FY2025 10-K Content Assets note: ~47/22/15/10/6%
-//      over five years (>90% within four years; film faster than TV).
-//        amort(t) = Σ_k amortSchedule[k−1] × spend(t−k)
-//    • Cash content spend is set to management's guided multiple of that
-//      year's amortization:  spend(t) = contentSpendMultiple × amort(t).
+//  SPEND-ANCHORED AMORTIZATION (reduced-form, calibrated to guidance):
+//    • Cash content spend is the exogenous driver. FY2026 is ANCHORED to
+//      management's $20B guidance; thereafter it grows at (revGrowth +
+//      contentSpendGrowthSpread) — e.g. 2pp below revenue.
+//    • Amortization tracks the guided steady-state ratio:
+//        amort(t) = spend(t) / contentSpendRatio   (ratio ≈ 1.1×)
+//      So FY2026 amort = $20B / 1.1 = $18.2B (+10.7% vs FY2025 — content
+//      amortization has never declined in Netflix history; the earlier
+//      vintage-convolution build wrongly showed it falling to $15.4B).
 //    • The library balance rolls: ContentAsset(t) = ContentAsset(t−1)
 //      + spend(t) − amort(t).
-//    • Seed: the existing released balance ($22.8B) runs off per the
-//      disclosed 3-yr schedule (legacyAmort), and the $9.95B in-production
-//      pipeline releases onto the same curve (pipelineBalance).
+//    • Margin expansion is then transparent: it comes entirely from content
+//      spend (hence amort) growing slower than revenue.
+//
+//  Why reduced-form: management guides directly to the spend/amort ratio,
+//  and a title-level cohort convolution proved fragile/under-identified
+//  (it under-counted near-term amortization). amortSchedule below is kept
+//  only as 10-K REFERENCE for the Content tab, not used by the engine.
 //
 //  Classical UFCF (content amort add-back nets cash additions to the drain):
 //    FCF = NOPAT + otherD&A − (spend − amort) − capex
@@ -40,13 +44,9 @@ export type { Scenario }
 export interface NetflixScenarioAssumptions {
   // 10 values — FY2026–2035 revenue growth (decimal)
   revGrowth: number[]
-  // Content-spend driver — exactly ONE of the following two is used:
-  //  • contentSpendMultiple: cash spend = multiple × that year's amortization
-  //    (management guides ~1.1×). Used by base/bull.
-  //  • contentSpendGrowthSpread: cash spend grows at (revGrowth + spread) off
-  //    the prior year's spend (e.g. −0.02 ⇒ 2pp below revenue). Used by bear.
-  contentSpendMultiple?:    number
-  contentSpendGrowthSpread?: number
+  // Cash content spend grows at (revGrowth + spread) off the FY2026 anchor
+  // each year (e.g. −0.02 ⇒ 2pp below revenue). The single content lever.
+  contentSpendGrowthSpread: number
   // Non-content COGS growth — either a fixed annual rate (base/bull) OR a
   // spread vs revenue growth (bear: −0.02 ⇒ grows 2pp below revenue). One set.
   nonContentCOGSGrowth?:       number
@@ -88,18 +88,13 @@ export interface NetflixModelConfig {
   buybackPE:        number  // P/E multiple paid on repurchases
   netInterestBase:  number  // FY2025 net interest expense ($B); bridges EBIT→net income & UFCF→levered FCF
 
-  // ── Vintage content-amortization engine inputs (FY2025A) ─────
+  // ── Content amortization (spend-anchored) inputs (FY2025A) ───
   contentAssetBase: number  // total content assets, net at 1-Jan-2026 ($B)
-  // Accelerated cohort curve: fraction of a vintage's cash spend amortized
-  // in each of the 5 years AFTER the spend year (1-yr release lag). Calibrated
-  // to the 10-K Content Assets note (blended licensed + produced run-off).
+  content2026Spend: number  // FY2026 cash content spend ($B) — management guidance anchor
+  contentSpendRatio: number // cash spend ÷ amortization (guided); amort = spend / ratio
+  // Disclosed accelerated cohort curve (fraction amortized in each year after
+  // first availability) — kept only as 10-K REFERENCE for the Content tab.
   amortSchedule:    number[]
-  // Disclosed forward amortization of the existing RELEASED balance ($22.8B),
-  // FY2026→2030 ($B) — the legacy run-off seed.
-  legacyAmort:      number[]
-  // In-production + in-development balance ($B) not yet amortizing at FY2025;
-  // releases onto amortSchedule beginning FY2026.
-  pipelineBalance:  number
   contentAmortBase: number  // FY2025A content amortization ($B) — reference
   contentSpendBase: number  // FY2025A cash additions to content ($B) — reference
   nonContentCOGSBase: number // FY2025 cost of revenues − content amort ($B)
@@ -154,12 +149,11 @@ export const NETFLIX_MODELS: NetflixModelConfig[] = [
     netInterestBase:  0.60,   // FY2025 net interest ($0.78B exp − $0.17B inc)
 
     contentAssetBase:   32.778,   // total content assets, net at 1-Jan-2026 ($B)
-    // Accelerated cohort curve (10-K: blended licensed+produced run-off,
-    // ~47/22/15/10/6; 94% within 4 yrs). Applies starting the year after spend.
+    content2026Spend:   20.0,     // FY2026 cash content spend — management guidance
+    contentSpendRatio:  1.10,     // guided spend ÷ amort ⇒ FY2026 amort = 20.0/1.1 = $18.2B
+    // 10-K disclosed accelerated run-off (~47/22/15/10/6; 94% within 4 yrs) —
+    // REFERENCE only (Content tab); the engine uses the guided ratio above.
     amortSchedule:      [0.47, 0.22, 0.15, 0.10, 0.06],
-    // Disclosed run-off of the existing $22.8B RELEASED balance, FY2026→2030 ($B)
-    legacyAmort:        [10.69, 5.06, 3.31, 2.30, 1.46],
-    pipelineBalance:    9.952,    // in-production $9.21B + in-development $0.74B (10-K Note 5)
     contentAmortBase:   16.422,   // FY2025A content amortization ($B)
     contentSpendBase:   17.097,   // FY2025A additions to content assets ($B, cash-flow stmt)
     nonContentCOGSBase: 6.853,    // FY2025 COGS $23.28B − content amort $16.42B
@@ -176,26 +170,27 @@ export const NETFLIX_MODELS: NetflixModelConfig[] = [
 
     accentColor: "#E50914", // Netflix red
 
+    // All scenarios anchor FY2026 spend to $20B (guidance); they diverge from
+    // 2027 via revenue growth and how far content spend trails revenue.
     scenarios: {
-      // ── Bear: slower growth with disciplined costs — both content spend
-      //    and non-content COGS grow ~2pp below revenue. The spend/amort
-      //    ratio floats out of the schedule; margins still expand, gently.
+      // ── Bear: slower growth, disciplined costs — content spend & non-content
+      //    COGS both grow ~2pp below revenue. Margins expand, gently.
       bear: {
         revGrowth:                  [0.13, 0.11, 0.10, 0.09, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08],
-        contentSpendGrowthSpread:   -0.02,   // cash content spend grows ~2pp below revenue
-        nonContentCOGSGrowthSpread: -0.02,   // non-content COGS grows ~2pp below revenue
+        contentSpendGrowthSpread:   -0.02,
+        nonContentCOGSGrowthSpread: -0.02,
       },
-      // ── Base: management's guided ~1.1× spend-to-amortization
+      // ── Base: content spend grows 2pp below revenue (200bps), non-content COGS +8%
       base: {
-        revGrowth:            [0.16, 0.14, 0.13, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12],
-        contentSpendMultiple: 1.10,   // guided cash content spend ≈ 1.1× amortization
-        nonContentCOGSGrowth: 0.08,
+        revGrowth:                [0.16, 0.14, 0.13, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12],
+        contentSpendGrowthSpread: -0.02,   // 200bps below revenue
+        nonContentCOGSGrowth:     0.08,
       },
-      // ── Bull: stronger growth, content efficiency (spend closer to amort)
+      // ── Bull: stronger growth + content efficiency (spend grows 3pp below revenue)
       bull: {
-        revGrowth:            [0.18, 0.16, 0.15, 0.14, 0.13, 0.13, 0.12, 0.12, 0.12, 0.12],
-        contentSpendMultiple: 1.05,
-        nonContentCOGSGrowth: 0.07,
+        revGrowth:                [0.18, 0.16, 0.15, 0.14, 0.13, 0.13, 0.12, 0.12, 0.12, 0.12],
+        contentSpendGrowthSpread: -0.03,
+        nonContentCOGSGrowth:     0.07,
       },
     },
   },

@@ -16,6 +16,7 @@ import { HD_MODELS } from "@/lib/hd-models"
 import { FICO_MODELS } from "@/lib/fico-models"
 import { LVMH_MODELS } from "@/lib/lvmh-models"
 import { NETFLIX_MODELS } from "@/lib/netflix-models"
+import { HERSHEY_MODELS } from "@/lib/hershey-models"
 import { runDCF } from "@/lib/dcf-engine"
 import { runMetaDCF } from "@/lib/meta-dcf-engine"
 import { runTeslaDCF } from "@/lib/tesla-engine"
@@ -29,6 +30,7 @@ import { runHDDCF } from "@/lib/hd-engine"
 import { runFicoSotp } from "@/lib/fico-engine"
 import { runLvmhDCF } from "@/lib/lvmh-engine"
 import { runNetflixDCF } from "@/lib/netflix-engine"
+import { runHersheyDCF } from "@/lib/hershey-engine"
 
 export const metadata: Metadata = {
   title: "Shadow Research",
@@ -77,6 +79,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ...FICO_MODELS.map(m => m.ticker),
     ...LVMH_MODELS.map(m => m.ticker),
     ...NETFLIX_MODELS.map(m => m.ticker),
+    ...HERSHEY_MODELS.map(m => m.ticker),
     'EURUSD=X',
   ]
   const uniqueTickers = [...new Set(allTickers)]
@@ -200,6 +203,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     const adj = prices.get(m.ticker) ? { ...m, currentPrice: prices.get(m.ticker)! } : m
     const r = runNetflixDCF(adj, "base", adj.waccDefault, adj.termGrowth)
     items.push({ slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor, cagr: r.impliedCAGR })
+  }
+
+  for (const m of HERSHEY_MODELS) {
+    const adj = prices.get(m.ticker) ? { ...m, currentPrice: prices.get(m.ticker)! } : m
+    const r = runHersheyDCF(adj, "base", adj.waccDefault, adj.termGrowth)
+    items.push({
+      slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor,
+      cagr: r.impliedCAGR,
+      extraInfo: `+ ${(r.divYieldFwd * 100).toFixed(1)}% Div`,
+    })
   }
 
   items.sort((a, b) => b.cagr - a.cagr)

@@ -37,6 +37,7 @@ const TICKER_DOMAINS: Record<string, string> = {
   LVMUY: 'lvmh.com',
   NFLX: 'netflix.com',
   HSY:  'thehersheycompany.com',
+  COST: 'costco.com',
 }
 
 const CACHE_SECONDS = 60 * 60 * 24   // 24 h

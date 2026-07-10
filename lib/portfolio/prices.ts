@@ -60,6 +60,48 @@ export async function fetchPrices(tickers: string[]): Promise<{
   return { prices, companyNames, allFetched }
 }
 
+// ── Forward dividend rates via yahoo-finance2 ─────────────────────────────────
+// Returns the live forward annual dividend per share (in the quote's native
+// currency — e.g. USD for an ADR), keyed by ticker. The rate reflects the most
+// recently *declared* dividend, so the resulting yield updates automatically
+// when a company announces a new dividend. Tickers with no dividend are omitted.
+
+export async function fetchDividendRates(tickers: string[]): Promise<Map<string, number>> {
+  const rates = new Map<string, number>()
+  if (tickers.length === 0) return rates
+
+  const take = (q: { dividendRate?: number; trailingAnnualDividendRate?: number }) =>
+    q.dividendRate ?? q.trailingAnnualDividendRate
+
+  try {
+    const quotes = await yf.quote(tickers) as Array<{
+      symbol:                      string
+      dividendRate?:               number
+      trailingAnnualDividendRate?: number
+    }>
+    for (const q of quotes) {
+      const rate = take(q)
+      if (typeof rate === 'number' && rate > 0) rates.set(q.symbol, rate)
+    }
+  } catch {
+    // If batch fails, try per-ticker
+    await Promise.allSettled(
+      tickers.map(async ticker => {
+        try {
+          const q = await yf.quote(ticker) as {
+            dividendRate?:               number
+            trailingAnnualDividendRate?: number
+          }
+          const rate = take(q)
+          if (typeof rate === 'number' && rate > 0) rates.set(ticker, rate)
+        } catch { /* skip */ }
+      }),
+    )
+  }
+
+  return rates
+}
+
 // ── Historical OHLC via yahoo-finance2 ────────────────────────────────────────
 // Used by history.ts for the performance chart.
 

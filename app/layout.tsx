@@ -17,6 +17,7 @@ import { FICO_MODELS } from "@/lib/fico-models"
 import { LVMH_MODELS } from "@/lib/lvmh-models"
 import { NETFLIX_MODELS } from "@/lib/netflix-models"
 import { HERSHEY_MODELS } from "@/lib/hershey-models"
+import { COSTCO_MODELS } from "@/lib/costco-models"
 import { runDCF } from "@/lib/dcf-engine"
 import { runMetaDCF } from "@/lib/meta-dcf-engine"
 import { runTeslaDCF } from "@/lib/tesla-engine"
@@ -31,6 +32,8 @@ import { runFicoSotp } from "@/lib/fico-engine"
 import { runLvmhDCF } from "@/lib/lvmh-engine"
 import { runNetflixDCF } from "@/lib/netflix-engine"
 import { runHersheyDCF } from "@/lib/hershey-engine"
+import { runCostcoDCF } from "@/lib/costco-engine"
+import { fetchDividendRates } from "@/lib/portfolio/prices"
 
 export const metadata: Metadata = {
   title: "Shadow Research",
@@ -57,7 +60,7 @@ async function yahooPrice(ticker: string): Promise<number | null> {
 
 type SidebarItem = {
   slug: string; ticker: string; name: string; sector: string
-  accentColor?: string; cagr: number; extraInfo?: string
+  accentColor?: string; cagr: number; divYield?: number; extraInfo?: string
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -80,6 +83,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ...LVMH_MODELS.map(m => m.ticker),
     ...NETFLIX_MODELS.map(m => m.ticker),
     ...HERSHEY_MODELS.map(m => m.ticker),
+    ...COSTCO_MODELS.map(m => m.ticker),
     'EURUSD=X',
   ]
   const uniqueTickers = [...new Set(allTickers)]
@@ -87,6 +91,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const priceResults = await Promise.all(uniqueTickers.map(t => yahooPrice(t)))
   const prices = new Map(uniqueTickers.map((t, i) => [t, priceResults[i]]))
   const fx = prices.get('EURUSD=X') ?? 1.08
+
+  // Live forward dividend rates (per share, quote-native currency) for the
+  // generic models. Keyed by ticker; absent for non-dividend payers (e.g. CMG).
+  // Updates automatically when a company declares a new dividend.
+  const dividendRates = await fetchDividendRates(MODELS.map(m => m.ticker))
 
   const items: SidebarItem[] = []
 
@@ -96,7 +105,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       ? { ...m, currency: 'USD' as const, currentPrice: livePrice ?? parseFloat((m.currentPrice * fx).toFixed(2)), baseRevenue: parseFloat((m.baseRevenue * fx).toFixed(1)), netCash: parseFloat((m.netCash * fx).toFixed(2)) }
       : livePrice ? { ...m, currentPrice: livePrice } : m
     const r = runDCF(adj, "base", adj.waccDefault, adj.termGrowth)
-    items.push({ slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor, cagr: r.impliedCAGR })
+    // dividendRate (e.g. SAP ADR) is USD, matching adj.currentPrice's USD basis.
+    const divRate = dividendRates.get(m.ticker)
+    const divYield = divRate && adj.currentPrice ? divRate / adj.currentPrice : null
+    items.push({
+      slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor,
+      cagr: r.impliedCAGR,
+      ...(divYield ? { divYield, extraInfo: `+ ${(divYield * 100).toFixed(1)}% Div` } : {}),
+    })
   }
 
   for (const m of META_MODELS) {
@@ -123,6 +139,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     items.push({
       slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor,
       cagr: r.impliedCAGR,
+      divYield: r.avgDivYield15xPE,
       extraInfo: `+ ${(r.avgDivYield15xPE * 100).toFixed(1)}% Div`,
     })
   }
@@ -151,6 +168,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     items.push({
       slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor,
       cagr: r.impliedCAGR,
+      divYield: r.avgDivYield,
       extraInfo: `+ ${(r.avgDivYield * 100).toFixed(1)}% Div`,
     })
   }
@@ -162,6 +180,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     items.push({
       slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor,
       cagr: r.impliedCAGR,
+      divYield,
       extraInfo: `+ ${(divYield * 100).toFixed(1)}% Div`,
     })
   }
@@ -179,6 +198,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     items.push({
       slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor,
       cagr: r.impliedCAGR,
+      divYield,
       extraInfo: `+ ${(divYield * 100).toFixed(1)}% Div`,
     })
   }
@@ -195,6 +215,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     items.push({
       slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor,
       cagr: r.impliedCAGR,
+      divYield: r.divYieldAdr,
       extraInfo: `+ ${(r.divYieldAdr * 100).toFixed(1)}% Div`,
     })
   }
@@ -211,11 +232,25 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     items.push({
       slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor,
       cagr: r.impliedCAGR,
+      divYield: r.divYieldFwd,
       extraInfo: `+ ${(r.divYieldFwd * 100).toFixed(1)}% Div`,
     })
   }
 
-  items.sort((a, b) => b.cagr - a.cagr)
+  for (const m of COSTCO_MODELS) {
+    const adj = prices.get(m.ticker) ? { ...m, currentPrice: prices.get(m.ticker)! } : m
+    const r = runCostcoDCF(adj, "base", adj.waccDefault, adj.termGrowth)
+    items.push({
+      slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor,
+      cagr: r.impliedCAGR,
+      divYield: r.divYieldFwd,
+      extraInfo: `+ ${(r.divYieldFwd * 100).toFixed(1)}% Div`,
+    })
+  }
+
+  // Rank by total return = price CAGR + dividend yield.
+  const totalReturn = (i: SidebarItem) => i.cagr + (i.divYield ?? 0)
+  items.sort((a, b) => totalReturn(b) - totalReturn(a))
 
   return (
     <html lang="en">

@@ -15,6 +15,7 @@ import { getFicoModel, FICO_MODELS } from "@/lib/fico-models"
 import { getLvmhModel, LVMH_MODELS } from "@/lib/lvmh-models"
 import { getNetflixModel, NETFLIX_MODELS } from "@/lib/netflix-models"
 import { getHersheyModel, HERSHEY_MODELS } from "@/lib/hershey-models"
+import { getCostcoModel, COSTCO_MODELS } from "@/lib/costco-models"
 import ModelShell from "@/components/ModelShell"
 import MetaModelShell from "@/components/MetaModelShell"
 import TeslaModelShell from "@/components/TeslaModelShell"
@@ -31,6 +32,7 @@ import FicoModelShell from "@/components/FicoModelShell"
 import LvmhModelShell from "@/components/LvmhModelShell"
 import NetflixModelShell from "@/components/NetflixModelShell"
 import HersheyModelShell from "@/components/HersheyModelShell"
+import CostcoModelShell from "@/components/CostcoModelShell"
 
 export const revalidate = 300 // refresh prices every 5 minutes
 
@@ -75,12 +77,13 @@ export async function generateStaticParams() {
     ...LVMH_MODELS.map(m => ({ slug: m.slug })),
     ...NETFLIX_MODELS.map(m => ({ slug: m.slug })),
     ...HERSHEY_MODELS.map(m => ({ slug: m.slug })),
+    ...COSTCO_MODELS.map(m => ({ slug: m.slug })),
   ]
 }
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params
-  const model  = getModel(slug) ?? getMetaModel(slug) ?? getTeslaModel(slug) ?? getLemonadeModel(slug) ?? getDeereModel(slug) ?? getCelsiusModel(slug) ?? getAtlassianModel(slug) ?? getSnowflakeModel(slug) ?? getNikeModel(slug) ?? getTsmModel(slug) ?? getQxoModel(slug) ?? getHDModel(slug) ?? getFicoModel(slug) ?? getLvmhModel(slug) ?? getNetflixModel(slug) ?? getHersheyModel(slug)
+  const model  = getModel(slug) ?? getMetaModel(slug) ?? getTeslaModel(slug) ?? getLemonadeModel(slug) ?? getDeereModel(slug) ?? getCelsiusModel(slug) ?? getAtlassianModel(slug) ?? getSnowflakeModel(slug) ?? getNikeModel(slug) ?? getTsmModel(slug) ?? getQxoModel(slug) ?? getHDModel(slug) ?? getFicoModel(slug) ?? getLvmhModel(slug) ?? getNetflixModel(slug) ?? getHersheyModel(slug) ?? getCostcoModel(slug)
   if (!model) return {}
   return {
     title: `${model.ticker} DCF — ${model.name}`,
@@ -228,6 +231,15 @@ export default async function ModelPage({ params }: Props) {
     const adjusted  = livePrice ? { ...hersheyModel, currentPrice: livePrice } : hersheyModel
     const priceSource = livePrice ? "Live · NYSE" : "Hardcoded"
     return <HersheyModelShell model={adjusted} priceSource={priceSource} />
+  }
+
+  // ── Costco simple three-driver FCF DCF ────────────────────────
+  const costcoModel = getCostcoModel(slug)
+  if (costcoModel) {
+    const livePrice = await yahooPrice(costcoModel.ticker)
+    const adjusted  = livePrice ? { ...costcoModel, currentPrice: livePrice } : costcoModel
+    const priceSource = livePrice ? "Live · NASDAQ" : "Hardcoded"
+    return <CostcoModelShell model={adjusted} priceSource={priceSource} />
   }
 
   // ── Standard earnings-based models (SAP / Chipotle engine) ────

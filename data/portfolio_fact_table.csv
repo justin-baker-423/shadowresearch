@@ -500,3 +500,12 @@ CUSIP: 166764100",SELL,EQUITY,20.0,211.85,4237.0,0.0,CSV-Robinhood,
 2026-06-25,2026-06-26,Robinhood,NFLX,NETFLIX INC,BUY,EQUITY,70.0,70.98,-4968.6,0.0,manual-entry,User-provided brokerage purchase
 2026-06-25,2026-06-25,Schwab IRA,META,META PLATFORMS INC CLASS A,DIVIDEND,EQUITY,0.0,0.0,14.26,0.0,manual-entry,Cash dividend reinvested same day; user-provided
 2026-06-25,2026-06-25,Schwab IRA,META,META PLATFORMS INC CLASS A,REINVEST,EQUITY,0.0261,546.894,-14.26,0.0,manual-entry,Dividend reinvested into 0.0261 sh META; user-provided
+2026-07-09,2026-07-09,Schwab IRA,TSM,TAIWAN SEMICONDUCTOR M FSPONSORED ADR 1 ADR REPS 5 ORD SHS,DIVIDEND,EQUITY,0.0,0.0,61.06,0.0,manual-entry,Gross ADR dividend; user-provided (Schwab screenshot)
+2026-07-09,2026-07-09,Schwab IRA,TSM,TAIWAN SEMICONDUCTOR M FSPONSORED ADR 1 ADR REPS 5 ORD SHS,FEE,EQUITY,0.0,0.0,-12.82,0.0,manual-entry,Foreign tax withheld on TSM dividend; user-provided
+2026-08-10,2026-08-10,Schwab IRA,DE,DEERE & CO,DIVIDEND,EQUITY,0.0,0.0,16.45,0.0,manual-entry,Cash dividend reinvested same day; user-provided
+2026-08-10,2026-08-10,Schwab IRA,DE,DEERE & CO,REINVEST,EQUITY,0.0268,614.1753,-16.45,0.0,manual-entry,Dividend reinvested into 0.0268 sh DE; user-provided
+2026-09-28,2026-09-28,Schwab IRA,META,META PLATFORMS INC CLASS A,DIVIDEND,EQUITY,0.0,0.0,14.28,0.0,manual-entry,Cash dividend reinvested same day; user-provided
+2026-09-28,2026-09-28,Schwab IRA,META,META PLATFORMS INC CLASS A,REINVEST,EQUITY,0.0198,722.2314,-14.28,0.0,manual-entry,Dividend reinvested into 0.0198 sh META; user-provided
+2026-09-28,2026-09-28,Robinhood,META,META PLATFORMS INC CLASS A,DIVIDEND,EQUITY,0.0,0.0,4.2,0.0,manual-entry,Cash dividend 8 sh x $0.525 reinvested same day (DRIP); user-provided
+2026-09-28,2026-09-28,Robinhood,META,META PLATFORMS INC CLASS A,REINVEST,EQUITY,0.0058,722.2314,-4.2,0.0,manual-entry,DRIP; user reported ~0.01 sh (Robinhood display rounding); qty derived from $4.20 at Schwab same-day reinvest price
+2026-09-29,2026-09-30,Robinhood,FICO,FAIR ISAAC CORP,BUY,EQUITY,7.0,612.75,-4289.25,0.0,manual-entry,User-provided brokerage purchase

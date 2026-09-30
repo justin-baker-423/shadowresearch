@@ -42,6 +42,9 @@ import { TESLA_MODELS }     from '@/lib/tesla-models'
 import { runNetflixDCF }    from '@/lib/netflix-engine'
 import { NETFLIX_MODELS }   from '@/lib/netflix-models'
 
+import { runFicoSotp }      from '@/lib/fico-engine'
+import { FICO_MODELS }      from '@/lib/fico-models'
+
 // ── Manual overrides (no DCF model; conviction-based estimate) ───
 const MANUAL_CAGR: Record<string, number> = {
   COIN: 0.15,  // difficult to value; pencilled in at above-market 15% (May 2026)
@@ -65,6 +68,15 @@ function cagrForTicker(ticker: string, livePrice: number): number | null {
     if (netflixModel) {
       const m = { ...netflixModel, currentPrice: livePrice }
       return runNetflixDCF(m, 'base', m.waccDefault, m.termGrowth).impliedCAGR
+    }
+
+    // ── FICO (two-segment SOTP; lookup by ticker not slug) ─────
+    const ficoModel = FICO_MODELS.find(m => m.ticker === ticker.toUpperCase())
+    if (ficoModel) {
+      const m = { ...ficoModel, currentPrice: livePrice }
+      const b = m.scenarios.base
+      return runFicoSotp(m, b.scoresPriceGrowth, m.scoresVolumeGrowth, b.softwareGrowth,
+        b.softwareMarginTarget, m.waccDefault, m.termGrowth).impliedCAGR
     }
 
     // ── Meta (ROIC-driven) ─────────────────────────────────────

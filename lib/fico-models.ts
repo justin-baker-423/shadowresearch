@@ -92,7 +92,7 @@ const FICO_MODEL: FicoModelConfig = {
   description: "Scores pricing moat · fixed-cost leverage → expanding margin · Software SaaS transition · buyback cannibal",
   lastUpdated: "May 2026",
 
-  currentPrice: 1180.00,
+  currentPrice: 612.75,   // Sep 30 2026 purchase price — replaced live by Yahoo on the perf tab
   sharesOut:    0.0232,    // 23.2M diluted shares (Q2 FY2026)
   netDebt:      3.37,      // $3.37B net debt (Q2 FY2026)
 

@@ -510,3 +510,4 @@ CUSIP: 166764100",SELL,EQUITY,20.0,211.85,4237.0,0.0,CSV-Robinhood,
 2026-09-28,2026-09-28,Robinhood,META,META PLATFORMS INC CLASS A,REINVEST,EQUITY,0.0058,722.2314,-4.2,0.0,manual-entry,DRIP; user reported ~0.01 sh (Robinhood display rounding); qty derived from $4.20 at Schwab same-day reinvest price
 2026-09-29,2026-09-30,Robinhood,FICO,FAIR ISAAC CORP,BUY,EQUITY,7.0,612.75,-4289.25,0.0,manual-entry,User-provided brokerage purchase
 2026-10-23,2026-10-23,Robinhood,,External cash deposit,DEPOSIT,CASH,0,0,5264.47,0.0,manual-entry,Cash contribution; user-provided
+2026-10-28,2026-10-29,Robinhood,NFLX,NETFLIX INC,BUY,EQUITY,70.0,61.635,-4314.45,0.0,manual-entry,User-provided brokerage purchase ($4314.45 total / 70 sh)

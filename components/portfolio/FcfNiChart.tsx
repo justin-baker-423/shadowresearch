@@ -25,7 +25,7 @@ ChartJS.register(
 // Methodology: (company total FCF or NI ÷ current diluted shares outstanding)
 // × user's current share count. Fiscal year → calendar year mapping:
 //   DE (Oct/Nov FY) → same CY  |  SNOW (Jan FY) → prior CY  |  TEAM (Jun FY) → same CY
-//   NFLX (Dec FY) → same CY  (70 sh ÷ 4.30B post-split diluted shares ⇒ ×16.279/$B)
+//   NFLX (Dec FY) → same CY  (140 sh ÷ 4.30B post-split diluted shares ⇒ ×32.558/$B)
 // NFLX GAAP figures ($M) — NI: 2761/5116/4492/5408/8712/10981 ·
 //   FCF: 1922/-132/1619/6926/6922/9461 (stockanalysis.com / FY2025 10-K).
 //   FICO (Sep FY) → same CY  (7 sh ÷ 23.2M diluted shares ⇒ ×0.3017/$M)
@@ -35,20 +35,20 @@ ChartJS.register(
 
 const YEARS = ['2020', '2021', '2022', '2023', '2024', '2025']
 
-// Portfolio-attributed FCF per year ($)  — incl. NFLX [31, -2, 26, 113, 113, 154]
+// Portfolio-attributed FCF per year ($)  — incl. NFLX [63, -4, 53, 225, 225, 308]
 //   · FICO [103, 126, 152, 138, 188, 232]
-const FCF = [481, 733, 677, 1059, 1572, 1670]
+const FCF = [513, 731, 704, 1171, 1684, 1824]
 
-// Portfolio-attributed Net Income per year ($)  — incl. NFLX [45, 83, 73, 88, 142, 179]
+// Portfolio-attributed Net Income per year ($)  — incl. NFLX [90, 167, 146, 176, 284, 358]
 //   · FICO [71, 118, 113, 130, 155, 197]
-const NI = [505, 726, 661, 1235, 1344, 1585]
+const NI = [550, 810, 734, 1323, 1486, 1764]
 
 // YoY growth rates — null for 2020 (no prior year)
-const FCF_GROWTH: (number | null)[] = [null, 52.4,  -7.6, 56.4, 48.4, 6.2]
-const NI_GROWTH:  (number | null)[] = [null, 43.8,  -9.0,  86.8, 8.8, 17.9]
+const FCF_GROWTH: (number | null)[] = [null, 42.5, -3.7, 66.3, 43.8, 8.3]
+const NI_GROWTH:  (number | null)[] = [null, 47.3, -9.4, 80.2, 12.3, 18.7]
 
-const FCF_CAGR = 28.3
-const NI_CAGR  = 25.7
+const FCF_CAGR = 28.9
+const NI_CAGR  = 26.2
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

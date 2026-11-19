@@ -511,3 +511,7 @@ CUSIP: 166764100",SELL,EQUITY,20.0,211.85,4237.0,0.0,CSV-Robinhood,
 2026-09-29,2026-09-30,Robinhood,FICO,FAIR ISAAC CORP,BUY,EQUITY,7.0,612.75,-4289.25,0.0,manual-entry,User-provided brokerage purchase
 2026-10-23,2026-10-23,Robinhood,,External cash deposit,DEPOSIT,CASH,0,0,5264.47,0.0,manual-entry,Cash contribution; user-provided
 2026-10-28,2026-10-29,Robinhood,NFLX,NETFLIX INC,BUY,EQUITY,70.0,61.635,-4314.45,0.0,manual-entry,User-provided brokerage purchase ($4314.45 total / 70 sh)
+2026-11-19,2026-11-19,Robinhood,,External cash deposit,DEPOSIT,CASH,0,0,1600.0,0.0,manual-entry,Cash contribution; user-provided
+2026-11-19,2026-11-20,Robinhood,ANT,"ANTHROPIC, PBC CLASS A",BUY,EQUITY,1.0,83.0,-83.0,0.0,manual-entry,User-provided brokerage purchase (lot 1 of 3)
+2026-11-19,2026-11-20,Robinhood,ANT,"ANTHROPIC, PBC CLASS A",BUY,EQUITY,9.0,108.0,-972.0,0.0,manual-entry,User-provided brokerage purchase (lot 2 of 3)
+2026-11-19,2026-11-20,Robinhood,ANT,"ANTHROPIC, PBC CLASS A",BUY,EQUITY,15.0,101.3,-1519.5,0.0,manual-entry,User-provided brokerage purchase (lot 3 of 3)

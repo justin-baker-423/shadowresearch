@@ -38,6 +38,7 @@ const TICKER_DOMAINS: Record<string, string> = {
   NFLX: 'netflix.com',
   HSY:  'thehersheycompany.com',
   COST: 'costco.com',
+  ANT:  'anthropic.com',
 }
 
 const CACHE_SECONDS = 60 * 60 * 24   // 24 h

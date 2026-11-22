@@ -45,6 +45,9 @@ import { NETFLIX_MODELS }   from '@/lib/netflix-models'
 import { runFicoSotp }      from '@/lib/fico-engine'
 import { FICO_MODELS }      from '@/lib/fico-models'
 
+import { runAnthropicDCF }  from '@/lib/anthropic-engine'
+import { ANTHROPIC_MODELS } from '@/lib/anthropic-models'
+
 // ── Manual overrides (no DCF model; conviction-based estimate) ───
 const MANUAL_CAGR: Record<string, number> = {
   COIN: 0.15,  // difficult to value; pencilled in at above-market 15% (May 2026)
@@ -77,6 +80,13 @@ function cagrForTicker(ticker: string, livePrice: number): number | null {
       const b = m.scenarios.base
       return runFicoSotp(m, b.scoresPriceGrowth, m.scoresVolumeGrowth, b.softwareGrowth,
         b.softwareMarginTarget, m.waccDefault, m.termGrowth).impliedCAGR
+    }
+
+    // ── Anthropic (compute-driven; lookup by ticker not slug) ──
+    const anthropicModel = ANTHROPIC_MODELS.find(m => m.ticker === ticker.toUpperCase())
+    if (anthropicModel) {
+      const m = { ...anthropicModel, currentPrice: livePrice }
+      return runAnthropicDCF(m, 'base', m.waccDefault, m.termGrowth).impliedCAGR
     }
 
     // ── Meta (ROIC-driven) ─────────────────────────────────────

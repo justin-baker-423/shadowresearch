@@ -18,6 +18,7 @@ import { LVMH_MODELS } from "@/lib/lvmh-models"
 import { NETFLIX_MODELS } from "@/lib/netflix-models"
 import { HERSHEY_MODELS } from "@/lib/hershey-models"
 import { COSTCO_MODELS } from "@/lib/costco-models"
+import { ANTHROPIC_MODELS } from "@/lib/anthropic-models"
 import { runDCF } from "@/lib/dcf-engine"
 import { runMetaDCF } from "@/lib/meta-dcf-engine"
 import { runTeslaDCF } from "@/lib/tesla-engine"
@@ -33,6 +34,7 @@ import { runLvmhDCF } from "@/lib/lvmh-engine"
 import { runNetflixDCF } from "@/lib/netflix-engine"
 import { runHersheyDCF } from "@/lib/hershey-engine"
 import { runCostcoDCF } from "@/lib/costco-engine"
+import { runAnthropicDCF } from "@/lib/anthropic-engine"
 import { fetchDividendRates } from "@/lib/portfolio/prices"
 
 export const metadata: Metadata = {
@@ -84,6 +86,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ...NETFLIX_MODELS.map(m => m.ticker),
     ...HERSHEY_MODELS.map(m => m.ticker),
     ...COSTCO_MODELS.map(m => m.ticker),
+    ...ANTHROPIC_MODELS.map(m => m.ticker),
     'EURUSD=X',
   ]
   const uniqueTickers = [...new Set(allTickers)]
@@ -246,6 +249,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       divYield: r.divYieldFwd,
       extraInfo: `+ ${(r.divYieldFwd * 100).toFixed(1)}% Div`,
     })
+  }
+
+  for (const m of ANTHROPIC_MODELS) {
+    const adj = prices.get(m.ticker) ? { ...m, currentPrice: prices.get(m.ticker)! } : m
+    const r = runAnthropicDCF(adj, "base", adj.waccDefault, adj.termGrowth)
+    items.push({ slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor, cagr: r.impliedCAGR })
   }
 
   // Rank by total return = price CAGR + dividend yield.

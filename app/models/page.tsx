@@ -25,6 +25,8 @@ import { HERSHEY_MODELS } from "@/lib/hershey-models"
 import { runHersheyDCF } from "@/lib/hershey-engine"
 import { COSTCO_MODELS } from "@/lib/costco-models"
 import { runCostcoDCF } from "@/lib/costco-engine"
+import { ANTHROPIC_MODELS } from "@/lib/anthropic-models"
+import { runAnthropicDCF } from "@/lib/anthropic-engine"
 
 export const revalidate = 300 // refresh every 5 minutes
 
@@ -296,6 +298,22 @@ export default async function Home() {
         cagr: result.impliedCAGR, updown: result.updown,
         intrinsicPerShare: result.perShare, labelIV: "Base IV",
         extraLine: `+ ${(result.divYieldFwd * 100).toFixed(1)}% dividend`,
+      })
+    })
+  )
+
+  // ── Anthropic compute-driven underlying-economics DCF ─────────
+  await Promise.all(
+    ANTHROPIC_MODELS.map(async m => {
+      const livePrice = await yahooPrice(m.ticker)
+      const adj = livePrice ? { ...m, currentPrice: livePrice } : m
+      const result = runAnthropicDCF(adj, "base", adj.waccDefault, adj.termGrowth)
+      cards.push({
+        slug: m.slug, ticker: m.ticker, name: m.name, description: m.description,
+        lastUpdated: m.lastUpdated, accentColor: m.accentColor,
+        exchange: m.exchange ?? "", currency: "$",
+        cagr: result.impliedCAGR, updown: result.updown,
+        intrinsicPerShare: result.perShare, labelIV: "Base IV",
       })
     })
   )

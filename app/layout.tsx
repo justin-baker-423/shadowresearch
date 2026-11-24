@@ -19,6 +19,7 @@ import { NETFLIX_MODELS } from "@/lib/netflix-models"
 import { HERSHEY_MODELS } from "@/lib/hershey-models"
 import { COSTCO_MODELS } from "@/lib/costco-models"
 import { ANTHROPIC_MODELS } from "@/lib/anthropic-models"
+import { AMAZON_MODELS } from "@/lib/amazon-models"
 import { runDCF } from "@/lib/dcf-engine"
 import { runMetaDCF } from "@/lib/meta-dcf-engine"
 import { runTeslaDCF } from "@/lib/tesla-engine"
@@ -35,6 +36,7 @@ import { runNetflixDCF } from "@/lib/netflix-engine"
 import { runHersheyDCF } from "@/lib/hershey-engine"
 import { runCostcoDCF } from "@/lib/costco-engine"
 import { runAnthropicDCF } from "@/lib/anthropic-engine"
+import { runAmazonSotp } from "@/lib/amazon-engine"
 import { fetchDividendRates } from "@/lib/portfolio/prices"
 
 export const metadata: Metadata = {
@@ -87,6 +89,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ...HERSHEY_MODELS.map(m => m.ticker),
     ...COSTCO_MODELS.map(m => m.ticker),
     ...ANTHROPIC_MODELS.map(m => m.ticker),
+    ...AMAZON_MODELS.map(m => m.ticker),
     'EURUSD=X',
   ]
   const uniqueTickers = [...new Set(allTickers)]
@@ -254,6 +257,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   for (const m of ANTHROPIC_MODELS) {
     const adj = prices.get(m.ticker) ? { ...m, currentPrice: prices.get(m.ticker)! } : m
     const r = runAnthropicDCF(adj, "base", adj.waccDefault, adj.termGrowth)
+    items.push({ slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor, cagr: r.impliedCAGR })
+  }
+
+  for (const m of AMAZON_MODELS) {
+    const adj = prices.get(m.ticker) ? { ...m, currentPrice: prices.get(m.ticker)! } : m
+    const r = runAmazonSotp(adj, "base", adj.waccDefault, adj.termGrowth)
     items.push({ slug: m.slug, ticker: m.ticker, name: m.name, sector: m.sector, accentColor: m.accentColor, cagr: r.impliedCAGR })
   }
 

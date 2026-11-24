@@ -17,6 +17,7 @@ import { getNetflixModel, NETFLIX_MODELS } from "@/lib/netflix-models"
 import { getHersheyModel, HERSHEY_MODELS } from "@/lib/hershey-models"
 import { getCostcoModel, COSTCO_MODELS } from "@/lib/costco-models"
 import { getAnthropicModel, ANTHROPIC_MODELS } from "@/lib/anthropic-models"
+import { getAmazonModel, AMAZON_MODELS } from "@/lib/amazon-models"
 import ModelShell from "@/components/ModelShell"
 import MetaModelShell from "@/components/MetaModelShell"
 import TeslaModelShell from "@/components/TeslaModelShell"
@@ -35,6 +36,7 @@ import NetflixModelShell from "@/components/NetflixModelShell"
 import HersheyModelShell from "@/components/HersheyModelShell"
 import CostcoModelShell from "@/components/CostcoModelShell"
 import AnthropicModelShell from "@/components/AnthropicModelShell"
+import AmazonModelShell from "@/components/AmazonModelShell"
 
 export const revalidate = 300 // refresh prices every 5 minutes
 
@@ -81,12 +83,13 @@ export async function generateStaticParams() {
     ...HERSHEY_MODELS.map(m => ({ slug: m.slug })),
     ...COSTCO_MODELS.map(m => ({ slug: m.slug })),
     ...ANTHROPIC_MODELS.map(m => ({ slug: m.slug })),
+    ...AMAZON_MODELS.map(m => ({ slug: m.slug })),
   ]
 }
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params
-  const model  = getModel(slug) ?? getMetaModel(slug) ?? getTeslaModel(slug) ?? getLemonadeModel(slug) ?? getDeereModel(slug) ?? getCelsiusModel(slug) ?? getAtlassianModel(slug) ?? getSnowflakeModel(slug) ?? getNikeModel(slug) ?? getTsmModel(slug) ?? getQxoModel(slug) ?? getHDModel(slug) ?? getFicoModel(slug) ?? getLvmhModel(slug) ?? getNetflixModel(slug) ?? getHersheyModel(slug) ?? getCostcoModel(slug) ?? getAnthropicModel(slug)
+  const model  = getModel(slug) ?? getMetaModel(slug) ?? getTeslaModel(slug) ?? getLemonadeModel(slug) ?? getDeereModel(slug) ?? getCelsiusModel(slug) ?? getAtlassianModel(slug) ?? getSnowflakeModel(slug) ?? getNikeModel(slug) ?? getTsmModel(slug) ?? getQxoModel(slug) ?? getHDModel(slug) ?? getFicoModel(slug) ?? getLvmhModel(slug) ?? getNetflixModel(slug) ?? getHersheyModel(slug) ?? getCostcoModel(slug) ?? getAnthropicModel(slug) ?? getAmazonModel(slug)
   if (!model) return {}
   return {
     title: `${model.ticker} DCF — ${model.name}`,
@@ -252,6 +255,22 @@ export default async function ModelPage({ params }: Props) {
     const adjusted  = livePrice ? { ...anthropicModel, currentPrice: livePrice } : anthropicModel
     const priceSource = livePrice ? "Live · NASDAQ" : "Hardcoded"
     return <AnthropicModelShell model={adjusted} priceSource={priceSource} />
+  }
+
+  // ── Amazon sum-of-the-parts (AWS + ads + commerce + ANT stake) ─
+  const amazonModel = getAmazonModel(slug)
+  if (amazonModel) {
+    const [livePrice, antPrice] = await Promise.all([
+      yahooPrice(amazonModel.ticker),
+      yahooPrice("ANT"),
+    ])
+    const adjusted = {
+      ...amazonModel,
+      currentPrice: livePrice ?? amazonModel.currentPrice,
+      anthropic: { ...amazonModel.anthropic, antPrice: antPrice ?? amazonModel.anthropic.antPrice },
+    }
+    const priceSource = livePrice ? "Live · NASDAQ" : "Hardcoded"
+    return <AmazonModelShell model={adjusted} priceSource={priceSource} />
   }
 
   // ── Standard earnings-based models (SAP / Chipotle engine) ────

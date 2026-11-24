@@ -48,6 +48,9 @@ import { FICO_MODELS }      from '@/lib/fico-models'
 import { runAnthropicDCF }  from '@/lib/anthropic-engine'
 import { ANTHROPIC_MODELS } from '@/lib/anthropic-models'
 
+import { runAmazonSotp }    from '@/lib/amazon-engine'
+import { AMAZON_MODELS }    from '@/lib/amazon-models'
+
 // ── Manual overrides (no DCF model; conviction-based estimate) ───
 const MANUAL_CAGR: Record<string, number> = {
   COIN: 0.15,  // difficult to value; pencilled in at above-market 15% (May 2026)
@@ -87,6 +90,13 @@ function cagrForTicker(ticker: string, livePrice: number): number | null {
     if (anthropicModel) {
       const m = { ...anthropicModel, currentPrice: livePrice }
       return runAnthropicDCF(m, 'base', m.waccDefault, m.termGrowth).impliedCAGR
+    }
+
+    // ── Amazon (sum of the parts; lookup by ticker not slug) ────
+    const amazonModel = AMAZON_MODELS.find(m => m.ticker === ticker.toUpperCase())
+    if (amazonModel) {
+      const m = { ...amazonModel, currentPrice: livePrice }
+      return runAmazonSotp(m, 'base', m.waccDefault, m.termGrowth).impliedCAGR
     }
 
     // ── Meta (ROIC-driven) ─────────────────────────────────────
